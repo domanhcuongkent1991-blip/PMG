@@ -1,44 +1,33 @@
-# Codex Android + Google Sheets Full Pack
+# PMG
 
-Gói này gồm 2 phần chính:
+DeviceTracker Android + Google Sheets Full Pack.
 
-1. **Bộ tài liệu nền cho Codex**
+Du an gom 2 phan chinh:
+
+1. Bo tai lieu nen cho Codex:
    - AGENTS.md
    - MASTER_PROMPT.txt
    - checklist, business rules, data model, UI/UX rules, sync rules, test plan
 
-2. **Khung project Android MVP** trong thư mục `android-mvp/`
+2. Khung project Android MVP trong thu muc `android-mvp/`:
    - Kotlin
    - Jetpack Compose
    - MVVM
    - Repository pattern
-   - Room (local database)
-   - WorkManager (sync queue)
-   - Hilt (dependency injection)
-   - Google Sheets remote integration ở mức khung/stub để bạn và Codex hoàn thiện tiếp
+   - Room local database
+   - WorkManager sync queue
+   - Hilt dependency injection
+   - Google Sheets remote integration
 
-## Mục tiêu kiến trúc
-- App hoạt động theo hướng **local-first**: nhập dữ liệu vào local DB trước.
-- Khi có mạng, WorkManager sẽ đẩy dữ liệu chờ sync lên Google Sheet.
-- Tìm kiếm xoay quanh `ma_thiet_bi`.
-- Trạng thái sửa chữa được suy ra từ `ngay_sua_chua`.
+## Muc Tieu Kien Truc
 
-## Điều đã có sẵn
-- Cấu trúc project Android ban đầu
-- Màn hình tra cứu MVP bằng Compose
-- Room entities / DAO / Database
-- Repository interface và implementation cơ bản
-- Sync worker khung
-- Hệ rule + docs để Codex bám đúng
+- App hoat dong theo huong local-first: nhap du lieu vao local DB truoc.
+- Khi co mang, WorkManager day du lieu cho sync len Google Sheet.
+- Tim kiem xoay quanh `ma_thiet_bi`.
+- Trang thai sua chua duoc suy ra tu `ngay_sua_chua`.
 
-## Điều bạn cần làm tiếp
-- Điền Google OAuth / Google Sheets API integration thật
-- Chốt mapping sheet thật trong `SheetConfig`
-- Hoàn thiện screen thêm/sửa dữ liệu
-- Hoàn thiện sync 2 chiều với Google Sheet
-- Viết test và polish UI
+## Ghi Chu
 
-## Ghi chú
-- Gói này ưu tiên **khung đúng hướng** và **ít đập đi làm lại**.
-- Phần tích hợp Google Sheets đang ở mức skeleton an toàn, chưa chứa secret hay OAuth client thật.
-- Nếu Android Studio yêu cầu cập nhật dependency hoặc wrapper, hãy để Android Studio sync và nâng theo môi trường máy của bạn.
+- Khong commit file secret hoac `local.properties`.
+- Cau hinh that nen nam trong file local rieng tren may phat trien.
+- Xem `input/prd.md` de biet yeu cau san pham chinh thuc.
