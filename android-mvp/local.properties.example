@@ -1,0 +1,45 @@
+# Copy this file to `local.properties` and fill real values.
+# Do not commit secrets.
+
+# Required for Sheets sync
+SHEETS_SPREADSHEET_ID=1WWZ3CoeJowlqGUiotwCwXIuijCHGbSCVwCcz3WacYGQ
+
+# Legacy current code key: default DMBT create/update target.
+# Product requirement updated on 2026-05-03: all DMBT sheets below must become TWO_WAY,
+# so this single-target model must be replaced by source-sheet-aware sync before final release.
+# DMBT T4.2026, may be renamed by user to DMBT T5.2026 next month.
+# If the existing tab is renamed, gid stays the same. If a new tab is created, update gid config.
+SHEETS_DMBT_LOG_SHEET_ID=1383308512
+
+# Future intended DMBT two-way scope after code support is implemented.
+# Current app code does not read this key yet.
+SHEETS_DMBT_SHEET_IDS=849979183,1783863163,1224276666,989601207,1607125070,1383308512
+SHEETS_DMBT_DEFAULT_CREATE_SHEET_ID=1383308512
+
+# HGT dinh ky
+SHEETS_HGT_CHECKS_SHEET_ID=57428884
+
+# Legacy current code key kept only so existing build does not lose config.
+# This no longer matches the final product requirement because DMBT 2022..2026 must become TWO_WAY.
+SHEETS_DMBT_READONLY_SHEET_IDS=849979183,1783863163,1224276666,989601207,1607125070
+
+# Optional for MVP phase after DMBT_LOG is stable
+SHEETS_DEVICE_MASTER_SHEET_ID=
+SHEETS_LOOKUP_OPTIONS_SHEET_ID=
+SHEETS_APP_CONFIG_SHEET_ID=
+
+# Repair sheet confirmed by user on 2026-05-03.
+# Name changes by month, for example Sua chua T5.2026. Use gid/config, not fixed title.
+# If the existing tab is renamed, gid stays the same. If a new tab is created, update gid config.
+# Contract/config support exists; mapper/network push-pull still needs test-workbook validation.
+# Sua chua T4.2026
+SHEETS_REPAIR_LOG_SHEET_ID=157327514
+
+# Preferred auth for development builds. Keep these values local only.
+SHEETS_OAUTH_CLIENT_ID=
+SHEETS_OAUTH_CLIENT_SECRET=
+SHEETS_REFRESH_TOKEN=
+
+# Temporary access token fallback for development only.
+# If SHEETS_REFRESH_TOKEN is present, debug builds intentionally embed an empty access token.
+SHEETS_ACCESS_TOKEN=

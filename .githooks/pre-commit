@@ -1,0 +1,11 @@
+#!/bin/sh
+
+node scripts/prevent-secrets.js
+status=$?
+if [ $status -ne 0 ]; then
+  echo "pre-commit hook blocked this commit for security reasons."
+  exit $status
+fi
+
+exit 0
+

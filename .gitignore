@@ -1,0 +1,77 @@
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+*.jks
+id_rsa
+id_ed25519
+local.properties
+**/local.properties
+*credential*
+*secret*
+secrets/
+**/secrets/
+
+# Node
+node_modules/
+npm-debug.log*
+.npm-cache/
+
+# Runtime logs
+out/
+*.log
+
+# Android / Gradle / local SDK
+.android-home/
+.android-local/
+.android-sdk/
+.gradle-local/
+**/.android-home/
+**/.gradle-user/
+**/.gradle-user-home/
+**/.home/
+**/.isolated-build/
+**/.kotlin/
+.home/
+.tools/
+.gradle/
+**/.gradle/
+.codex-build/
+**/.codex-build/
+build/
+**/build/
+captures/
+**/captures/
+.externalNativeBuild/
+**/.externalNativeBuild/
+.cxx/
+**/.cxx/
+*.iml
+
+# Local IDE / agent runtime
+.idea/
+.cursor/
+.codex/
+.workflow-gate/
+.planning/
+
+# Verification sandboxes and generated UI dumps
+_verify_android_mvp/
+_verify_ui_redesign/
+window_*.xml
+*.apk
+android-mvp/*.xml
+android-mvp/*log*.txt
+android-mvp/jobscheduler_dump*.txt
+android-mvp/forced_job*.txt
+
+# Local backup files generated during setup/repair
+*.bak
+*.bak.*
+*.bak-*
+
+# Optional planning privacy

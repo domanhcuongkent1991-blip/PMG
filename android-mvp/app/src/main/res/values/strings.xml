@@ -1,0 +1,124 @@
+﻿<resources>
+    <string name="app_name">DeviceTracker</string>
+
+    <string name="cd_back">Quay lại</string>
+    <string name="cd_add_new">Thêm bản ghi mới</string>
+    <string name="cd_open_sidebar">Mở thanh bên</string>
+
+    <string name="search_title">Danh sách bảo trì</string>
+    <string name="label_device_code">Mã thiết bị</string>
+    <string name="placeholder_device_code">Nhập mã để tìm</string>
+    <string name="search_status_filter_title">Trạng thái sửa chữa</string>
+    <string name="search_date_sort_title">Sắp xếp theo ngày</string>
+    <string name="filter_order_title">Thứ tự</string>
+    <string name="filter_sheet_title">Bộ lọc</string>
+    <string name="filter_action_button">Lọc</string>
+    <string name="search_category_title">Danh mục chính</string>
+    <string name="category_all">Tất cả năm</string>
+    <string name="timeline_chip_label">DMBT %1$d</string>
+    <string name="search_empty_state">Chưa có dữ liệu phù hợp</string>
+    <string name="sidebar_title">Mục chính</string>
+    <string name="sidebar_search">Tra cứu thiết bị</string>
+    <string name="sidebar_add_record">Thêm bản ghi</string>
+    <string name="sidebar_sync_status">Trạng thái đồng bộ</string>
+    <string name="sidebar_hgt_checks">HGT định kỳ</string>
+    <string name="sidebar_status_section">Bộ lọc trạng thái</string>
+    <string name="sidebar_yearly_dmbt_section">Khu 1 - DMBT theo năm</string>
+    <string name="sidebar_monthly_dmbt_section">Khu 2 - DMBT theo tháng</string>
+    <string name="sidebar_monthly_repair_section">Khu 3 - Sửa chữa theo tháng</string>
+    <string name="sidebar_hgt_section">Khu 4 - HGT định kỳ</string>
+    <string name="category_monthly_dmbt_t4_2026">DMBT T4.2026</string>
+    <string name="category_monthly_repair_t4_2026">Sửa chữa T4.2026</string>
+
+    <string name="sync_status_title">Trạng thái đồng bộ</string>
+    <string name="sync_status_refresh">Làm mới</string>
+    <string name="sync_status_sync_now">Đồng bộ ngay</string>
+    <string name="sync_status_mode_title">Chế độ đồng bộ</string>
+    <string name="sync_status_mode_quick">Nhanh</string>
+    <string name="sync_status_mode_full">Đầy đủ</string>
+    <string name="sync_status_mode_selected_quick">Đang chọn: Đồng bộ nhanh</string>
+    <string name="sync_status_mode_selected_full">Đang chọn: Đồng bộ đầy đủ</string>
+    <string name="sync_status_sync_now_quick">Đồng bộ nhanh</string>
+    <string name="sync_status_sync_now_full">Đồng bộ đầy đủ</string>
+    <string name="sync_status_total_logs">Tổng bản ghi local</string>
+    <string name="sync_status_synced_logs">Đã đồng bộ (SYNCED)</string>
+    <string name="sync_status_pending_logs">Chờ đồng bộ (PENDING)</string>
+    <string name="sync_status_breakdown_title">Chi tiết theo nhóm dữ liệu</string>
+    <string name="sync_status_dmbt_title">DMBT</string>
+    <string name="sync_status_hgt_title">HGT định kỳ</string>
+    <string name="sync_status_split_total">Tổng</string>
+    <string name="sync_status_split_synced">Đã đồng bộ</string>
+    <string name="sync_status_split_pending">Chờ đồng bộ</string>
+    <string name="sync_status_queue_size">Số mục trong hàng đợi</string>
+    <string name="sync_status_queue_error_count">Mục có lỗi retry</string>
+    <string name="sync_status_latest_error">Lỗi gần nhất trong hàng đợi</string>
+    <string name="sync_status_pending_items_title">Thiết bị chờ đồng bộ</string>
+    <string name="sync_status_pending_items_empty">Không có thiết bị chờ đồng bộ</string>
+
+    <string name="hgt_title">HGT định kỳ</string>
+    <string name="hgt_empty_state">Chưa có dữ liệu HGT phù hợp</string>
+    <string name="hgt_cycle_days">Chu kỳ: %1$d ngày</string>
+    <string name="hgt_latest_date">Lần gần nhất</string>
+    <string name="hgt_next_date">Lần tiếp theo</string>
+    <string name="hgt_edit_latest_date">Sửa lần gần nhất</string>
+    <string name="hgt_edit_item">Chỉnh sửa bản ghi HGT</string>
+    <string name="hgt_add_button">Thêm mã</string>
+    <string name="hgt_add_dialog_title">Thêm HGT định kỳ</string>
+    <string name="hgt_edit_dialog_title">Chỉnh sửa HGT định kỳ</string>
+    <string name="hgt_device_code_input">Mã thiết bị</string>
+    <string name="hgt_cycle_days_input">Chu kỳ (ngày)</string>
+    <string name="hgt_latest_date_input">Lần gần nhất (dd/MM/yyyy)</string>
+    <string name="hgt_next_date_preview">Lần tiếp theo dự kiến: %1$s</string>
+    <string name="hgt_delete_button">Xóa</string>
+    <string name="hgt_reminder_settings_button">Cài đặt nhắc lịch HGT</string>
+    <string name="hgt_reminder_settings_title">Cài đặt nhắc lịch HGT</string>
+    <string name="hgt_reminder_enable_label">Bật nhắc lịch</string>
+    <string name="hgt_reminder_days_before_label">Nhắc trước (ngày)</string>
+    <string name="hgt_reminder_time_label">Giờ nhắc (HH:mm)</string>
+    <string name="hgt_reminder_time_hint">Ví dụ: 07:30</string>
+    <string name="hgt_reminder_channel_name">Nhắc lịch kiểm tra HGT</string>
+    <string name="hgt_reminder_channel_desc">Thông báo thiết bị sắp đến lịch kiểm tra HGT</string>
+    <string name="hgt_reminder_notification_title">Sắp đến lịch kiểm tra HGT</string>
+    <string name="hgt_reminder_notification_body">Thiết bị %1$s cần kiểm tra trước ngày %2$s</string>
+
+    <string name="filter_all">Tất cả</string>
+    <string name="filter_repaired">Đã sửa</string>
+    <string name="filter_pending">Chưa sửa</string>
+    <string name="sort_field_discovery_date">Ngày phát hiện</string>
+    <string name="sort_field_repair_date">Ngày sửa chữa</string>
+    <string name="sort_order_newest_first">Gần nhất</string>
+    <string name="sort_order_oldest_first">Xa nhất</string>
+    <string name="label_index">STT</string>
+
+    <string name="detail_title">Chi tiết bản ghi</string>
+    <string name="detail_not_found">Không tìm thấy dữ liệu</string>
+    <string name="detail_update_repair_date_button">Cập nhật ngày sửa chữa</string>
+
+    <string name="edit_title">Thêm bản ghi</string>
+    <string name="edit_save_button">Lưu local và chờ sync</string>
+    <string name="edit_section_device_info">Thông tin thiết bị</string>
+    <string name="edit_section_dates">Thông tin thời gian</string>
+
+    <string name="repair_title">Cập nhật ngày sửa chữa</string>
+    <string name="repair_clear_button">Xóa ngày</string>
+    <string name="repair_save_button">Lưu</string>
+    <string name="repair_section_info">Thông tin hiện tại</string>
+    <string name="repair_device_code_value">Mã thiết bị: %1$s</string>
+    <string name="repair_discovery_date_value">Ngày phát hiện: %1$s</string>
+    <string name="repair_record_id_value">Record ID: %1$s</string>
+
+    <string name="label_device_code_required">Mã thiết bị *</string>
+    <string name="label_category">Hạng mục</string>
+    <string name="placeholder_category_example">Ví dụ: DMBT 2022</string>
+    <string name="label_reporter">Người báo cáo</string>
+    <string name="label_device_condition">Tình trạng thiết bị</string>
+    <string name="label_technician">KTV phụ trách</string>
+    <string name="label_discovery_date">Ngày phát hiện</string>
+    <string name="label_discovery_date_required">Ngày phát hiện * (dd/MM/yyyy)</string>
+    <string name="label_repair_date">Ngày sửa chữa</string>
+    <string name="label_repair_date_optional">Ngày sửa chữa (dd/MM/yyyy)</string>
+    <string name="placeholder_repair_date_optional">Để trống nếu chưa sửa</string>
+    <string name="label_note">Ghi chú</string>
+    <string name="placeholder_note">Bổ sung thông tin nếu cần</string>
+    <string name="label_record_id">Record ID</string>
+</resources>

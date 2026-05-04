@@ -1,0 +1,29 @@
+﻿{
+    "private":  true,
+    "name":  "gsd-project",
+    "version":  "1.0.0",
+    "dependencies":  {
+                         "@gsd-build/sdk":  "^0.1.0"
+                     },
+    "scripts":  {
+                    "gsd:health":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\gsd-health-check-quick.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
+                    "gsd:health:strict":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\gsd-health-check-quick.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\" -Strict",
+                    "gsd:health:global":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\gsd-health-check-quick.ps1",
+                    "gsd:health:global:strict":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\gsd-health-check-quick.ps1 -Strict",
+                    "gsd:repair:global":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\fix-codex-thread-path-hard.ps1 -StopCodexProcesses",
+                    "gsd:repair:global:relaunch":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\fix-codex-thread-path-hard.ps1 -StopCodexProcesses -RelaunchCodex",
+                    "gsd:autopilot":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\Run-GsdAutopilot.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
+                    "gsd:health:central":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\global-health-check.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
+                    "gsd:doctor":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\global-health-check.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
+                    "gsd:repair:codex":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\fix-codex-thread-path-hard.ps1 -StopCodexProcesses",
+                    "gsd:repair:codex:relaunch":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\fix-codex-thread-path-hard.ps1 -StopCodexProcesses -RelaunchCodex",
+                    "ops:worklog":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\ensure-daily-worklog.ps1",
+                    "ops:verify-sheets":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\verify-sheets-config.ps1 -Offline",
+                    "ops:sheets-inventory":  "node .\\scripts\\export-sheets-inventory-node.js",
+                    "ops:sheets-inventory:ps":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\export-sheets-inventory.ps1",
+                    "ops:test":  "powershell -ExecutionPolicy Bypass -File .\\scripts\\test-ops-scripts.ps1",
+                    "gsd:anywhere:doctor":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
+                    "gsd:anywhere:fix":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\" -AutoFix",
+                    "gsd:anywhere:run":  "powershell -ExecutionPolicy Bypass -File \"D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1\" -ProjectPath \"F:\\codex_android_gsheet_full_pack\" -AutoFix -RunAutopilot -SafetyLevel safe"
+                }
+}

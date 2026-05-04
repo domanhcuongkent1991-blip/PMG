@@ -1,0 +1,191 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "a5f5e53c6bcdffeaca3acd1c6f94b345",
+    "entities": [
+      {
+        "tableName": "device_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`recordId` TEXT NOT NULL, `maThietBi` TEXT NOT NULL, `hangMuc` TEXT NOT NULL, `nguoiBaoCao` TEXT NOT NULL, `tinhTrangThietBi` TEXT NOT NULL, `ktvPhuTrach` TEXT NOT NULL, `ngayPhatHien` TEXT NOT NULL, `ngaySuaChua` TEXT, `ghiChu` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL, PRIMARY KEY(`recordId`))",
+        "fields": [
+          {
+            "fieldPath": "recordId",
+            "columnName": "recordId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maThietBi",
+            "columnName": "maThietBi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hangMuc",
+            "columnName": "hangMuc",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nguoiBaoCao",
+            "columnName": "nguoiBaoCao",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tinhTrangThietBi",
+            "columnName": "tinhTrangThietBi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ktvPhuTrach",
+            "columnName": "ktvPhuTrach",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ngayPhatHien",
+            "columnName": "ngayPhatHien",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ngaySuaChua",
+            "columnName": "ngaySuaChua",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ghiChu",
+            "columnName": "ghiChu",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "recordId"
+          ]
+        }
+      },
+      {
+        "tableName": "sync_queue",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `recordId` TEXT NOT NULL, `operation` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL, `lastError` TEXT)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "recordId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operation",
+            "columnName": "operation",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retryCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "lastError",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "hgt_checks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `maThietBi` TEXT NOT NULL, `chuKyNgay` INTEGER NOT NULL, `lanGanNhat` TEXT NOT NULL, `lanTiepTheo` TEXT NOT NULL, `updatedAt` INTEGER NOT NULL, `syncStatus` TEXT NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "maThietBi",
+            "columnName": "maThietBi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "chuKyNgay",
+            "columnName": "chuKyNgay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lanGanNhat",
+            "columnName": "lanGanNhat",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lanTiepTheo",
+            "columnName": "lanTiepTheo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncStatus",
+            "columnName": "syncStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a5f5e53c6bcdffeaca3acd1c6f94b345')"
+    ]
+  }
+}
