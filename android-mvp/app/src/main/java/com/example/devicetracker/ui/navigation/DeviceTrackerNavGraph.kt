@@ -1,6 +1,7 @@
 package com.example.devicetracker.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -27,25 +28,40 @@ fun DeviceTrackerNavGraph() {
             )
         }
         composable(NavRoutes.SyncStatus.route) {
-            SyncStatusScreen(onBack = { navController.popBackStack() })
+            SyncStatusScreen(onBack = { navController.safePopBackStack() })
         }
         composable(NavRoutes.HgtChecks.route) {
-            HgtCheckScreen(onBack = { navController.popBackStack() })
+            HgtCheckScreen(onBack = { navController.safePopBackStack() })
         }
         composable(NavRoutes.Edit.route) {
-            EditLogScreen(onBack = { navController.popBackStack() })
+            EditLogScreen(onBack = { navController.safePopBackStack() })
         }
         composable(NavRoutes.Detail.route) { backStackEntry ->
             DetailScreen(
                 recordId = backStackEntry.arguments?.getString("recordId").orEmpty(),
-                onBack = { navController.popBackStack() },
+                onBack = { navController.safePopBackStack() },
                 onUpdateRepairDate = { recordId ->
                     navController.navigate(NavRoutes.RepairDate.create(recordId))
                 }
             )
         }
         composable(NavRoutes.RepairDate.route) {
-            UpdateRepairDateScreen(onBack = { navController.popBackStack() })
+            UpdateRepairDateScreen(onBack = { navController.safePopBackStack() })
+        }
+    }
+}
+
+private fun NavHostController.safePopBackStack() {
+    val currentRoute = currentBackStackEntry?.destination?.route
+    if (currentRoute == NavRoutes.Search.route) return
+
+    val popped = popBackStack()
+    if (!popped || currentBackStackEntry == null) {
+        navigate(NavRoutes.Search.route) {
+            popUpTo(graph.startDestinationId) {
+                inclusive = false
+            }
+            launchSingleTop = true
         }
     }
 }

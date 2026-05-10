@@ -42,10 +42,20 @@ class SheetsRemoteDataSource @Inject constructor(
     @Volatile
     private var cachedAccessTokenExpiresAt: Long = 0L
 
+    @Volatile
+    private var latestDmbtSheetIssueReports: List<DmbtSheetIssueReport> = emptyList()
+
+    internal fun getLatestDmbtSheetIssueReports(): List<DmbtSheetIssueReport> = latestDmbtSheetIssueReports
+
     suspend fun pushLogs(logs: List<DeviceLog>): Result<Unit> {
         val validationResult = validateStructure()
         if (validationResult.isFailure) return validationResult
         if (logs.isEmpty()) return Result.success(Unit)
+        val provenanceConfigResult = validateDmbtProvenanceConfig(
+            bindings = sheetConfig.dmbtSheetBindings,
+            yearlySheetIds = sheetConfig.yearlyDmbtSheetBindings.map { it.sheetId }.toSet()
+        )
+        if (provenanceConfigResult.isFailure) return provenanceConfigResult
 
         val payloadValidation = validateDmbtLogPayload(logs)
         if (payloadValidation.isFailure) return payloadValidation
@@ -57,11 +67,12 @@ class SheetsRemoteDataSource @Inject constructor(
                     ?: sheetConfig.sheetId(SheetRole.DMBT_LOG)
                 val logsByTargetSheet = groupDmbtLogsByTargetSheet(
                     logs = logs,
-                    defaultCreateSheetId = defaultCreateSheetId
+                    defaultCreateSheetId = defaultCreateSheetId,
+                    configuredDmbtSheetIds = sheetConfig.dmbtSheetBindings.map { it.sheetId }.toSet()
                 )
                 if (logsByTargetSheet.values.sumOf { it.size } != logs.size) {
                     throw NonRetryableSyncException(
-                        "DMBT_LOG payload has local rows without sourceSheetId and no default create sheet configured."
+                        "DMBT_LOG payload has unresolved target sheet. Add sourceSheetId for legacy rows before push."
                     )
                 }
 
@@ -147,32 +158,84 @@ class SheetsRemoteDataSource @Inject constructor(
                 ?: NonRetryableSyncException("Unknown structure validation error.")
             return Result.failure(validationError)
         }
+        val provenanceConfigResult = validateDmbtProvenanceConfig(
+            bindings = sheetConfig.dmbtSheetBindings,
+            yearlySheetIds = sheetConfig.yearlyDmbtSheetBindings.map { it.sheetId }.toSet()
+        )
+        if (provenanceConfigResult.isFailure) {
+            val error = provenanceConfigResult.exceptionOrNull()
+                ?: NonRetryableSyncException("Invalid DMBT provenance mapping.")
+            return Result.failure(error)
+        }
 
         return runCatching {
             withContext(Dispatchers.IO) {
+                latestDmbtSheetIssueReports = emptyList()
                 val accessToken = requireAccessToken()
-                val pullTargets = dmbtPullTargets(sheetConfig.dmbtSheetBindings)
-                if (pullTargets.isEmpty()) {
+                val yearlyBindings = sheetConfig.yearlyDmbtSheetBindings
+                val yearlyPullTargets = dmbtPullTargets(yearlyBindings)
+                if (yearlyPullTargets.isEmpty()) {
                     throw NonRetryableSyncException("Missing DMBT sheet bindings in config.")
                 }
+                val monthlyPullTargets = dmbtPullTargets(sheetConfig.monthlyDmbtSheetBindings)
 
                 val metadata = fetchSpreadsheetMetadata(accessToken)
                 val pulledLogs = mutableListOf<DeviceLog>()
-                pullTargets.forEach { target ->
-                    val sheetTitle = metadata.sheetTitleById[target.sheetId]
-                        ?: throw NonRetryableSyncException(
-                            "Cannot resolve title for configured DMBT sheetId=${target.sheetId}."
-                        )
-
-                    pulledLogs += pullDmbtLogsFromSheet(
-                        sheetId = target.sheetId,
-                        sheetTitle = sheetTitle,
-                        accessToken = accessToken,
-                        namespaceRecordIds = target.namespaceRecordIds
-                    )
-                }
+                pullDmbtTargetsWithFaultIsolation(
+                    targets = yearlyPullTargets,
+                    metadata = metadata,
+                    accessToken = accessToken,
+                    pulledLogs = pulledLogs,
+                    yearlySheetIds = yearlyBindings.map { it.sheetId }.toSet()
+                )
+                pullDmbtTargetsWithFaultIsolation(
+                    targets = monthlyPullTargets,
+                    metadata = metadata,
+                    accessToken = accessToken,
+                    pulledLogs = pulledLogs,
+                    yearlySheetIds = yearlyBindings.map { it.sheetId }.toSet()
+                )
 
                 pulledLogs
+            }
+        }
+    }
+
+    private fun pullDmbtTargetsWithFaultIsolation(
+        targets: List<DmbtPullTarget>,
+        metadata: SpreadsheetMetadata,
+        accessToken: String,
+        pulledLogs: MutableList<DeviceLog>,
+        yearlySheetIds: Set<Int>
+    ) {
+        targets.forEach { target ->
+            val sheetTitle = metadata.sheetTitleById[target.sheetId]
+            if (sheetTitle == null) {
+                val error = NonRetryableSyncException(
+                    "Cannot resolve title for configured DMBT sheetId=${target.sheetId}."
+                )
+                if (isYearlyDmbtSheetFailureFatal(target.sheetId, yearlySheetIds)) {
+                    throw error
+                }
+                Log.w(TAG, "pullLatestLogs skipped optional monthly DMBT sheetId=${target.sheetId}: ${error.message}")
+                return@forEach
+            }
+
+            try {
+                pulledLogs += pullDmbtLogsFromSheet(
+                    sheetId = target.sheetId,
+                    sheetTitle = sheetTitle,
+                    accessToken = accessToken,
+                    namespaceRecordIds = target.namespaceRecordIds
+                )
+            } catch (e: Exception) {
+                if (isYearlyDmbtSheetFailureFatal(target.sheetId, yearlySheetIds)) {
+                    throw e
+                }
+                Log.w(
+                    TAG,
+                    "pullLatestLogs skipped optional monthly DMBT sheetId=${target.sheetId}: ${e.message}"
+                )
             }
         }
     }
@@ -188,7 +251,8 @@ class SheetsRemoteDataSource @Inject constructor(
 
         val schema = parseDmbtSchema(gridRows)
         var skippedRows = 0
-        val pulledLogs = schema.rows.mapNotNull { row ->
+        val skippedInvalidRowSamples = mutableListOf<Int>()
+        val pulledLogRows = schema.rows.mapNotNull { row ->
             val maThietBi = schema.valueFromRow(row.values, DmbtLogColumns.MA_THIET_BI).trim()
             if (maThietBi.isBlank()) return@mapNotNull null
 
@@ -202,6 +266,9 @@ class SheetsRemoteDataSource @Inject constructor(
             if (ngayPhatHien.isBlank() || ngayPhatHien == "--") {
                 // Keep pull stable: skip malformed/incomplete rows instead of failing all DMBT pull.
                 skippedRows += 1
+                if (skippedInvalidRowSamples.size < 10) {
+                    skippedInvalidRowSamples += row.rowNumber
+                }
                 Log.w(
                     TAG,
                     "pullLatestLogs skipped DMBT sheetId=$sheetId row=${row.rowNumber}: invalid ngay_phat_hien='$ngayPhatHienRaw'"
@@ -233,22 +300,61 @@ class SheetsRemoteDataSource @Inject constructor(
             val updatedAtRaw = schema.valueFromRow(row.values, DmbtLogColumns.UPDATED_AT).trim()
             val updatedAt = updatedAtRaw.toLongOrNull() ?: 0L
 
-            DeviceLog(
-                recordId = recordIdentity.recordId,
-                maThietBi = maThietBi,
-                hangMuc = hangMuc,
-                nguoiBaoCao = nguoiBaoCao,
-                tinhTrangThietBi = tinhTrang,
-                ktvPhuTrach = ktvPhuTrach,
-                ngayPhatHien = ngayPhatHien,
-                ngaySuaChua = ngaySuaChua,
-                ghiChu = ghiChu,
-                updatedAt = updatedAt,
-                sourceSheetId = recordIdentity.sourceSheetId
+            DmbtPulledLogRow(
+                rowNumber = row.rowNumber,
+                log = DeviceLog(
+                    recordId = recordIdentity.recordId,
+                    maThietBi = maThietBi,
+                    hangMuc = hangMuc,
+                    nguoiBaoCao = nguoiBaoCao,
+                    tinhTrangThietBi = tinhTrang,
+                    ktvPhuTrach = ktvPhuTrach,
+                    ngayPhatHien = ngayPhatHien,
+                    ngaySuaChua = ngaySuaChua,
+                    ghiChu = ghiChu,
+                    updatedAt = updatedAt,
+                    sourceSheetId = recordIdentity.sourceSheetId
+                )
             )
         }
+        val pulledLogs = pulledLogRows.map { it.log }
         if (skippedRows > 0) {
             Log.w(TAG, "pullLatestLogs skippedRows=$skippedRows for DMBT sheetId=$sheetId title='$sheetTitle'")
+        }
+        val stats = buildDmbtPullSheetStats(
+            sheetId = sheetId,
+            sheetTitle = sheetTitle,
+            pulledLogs = pulledLogs,
+            skippedInvalidRows = skippedRows,
+            rowNumbersByRecordId = pulledLogRows.groupBy(
+                keySelector = { it.log.recordId },
+                valueTransform = { it.rowNumber }
+            ),
+            skippedInvalidRowSamples = skippedInvalidRowSamples
+        )
+        val sheetIssueReports = buildDmbtSheetIssueReports(
+            sheetTitle = sheetTitle,
+            stats = stats,
+            pulledLogs = pulledLogs
+        )
+        if (sheetIssueReports.isNotEmpty()) {
+            latestDmbtSheetIssueReports = latestDmbtSheetIssueReports + sheetIssueReports
+        }
+        Log.i(
+            TAG,
+            "pullLatestLogs sheetStats DMBT sheetId=${stats.sheetId} title='${stats.sheetTitle}' " +
+                "fetchedRows=${stats.fetchedRows} uniqueRemoteIds=${stats.uniqueRemoteIds} " +
+                "duplicateRemoteIds=${stats.duplicateRemoteIds} skippedInvalidRows=${stats.skippedInvalidRows} " +
+                "skippedInvalidRowSamples=${stats.skippedInvalidRowSamples}"
+        )
+        if (stats.duplicateRemoteIds > 0) {
+            Log.w(
+                TAG,
+                "pullLatestLogs duplicate remote DMBT identities sheetId=${stats.sheetId} " +
+                    "title='${stats.sheetTitle}' duplicateRemoteIds=${stats.duplicateRemoteIds} " +
+                    "duplicateRemoteIdSamples=${stats.duplicateRemoteIdSamples.joinToString(limit = 10)} " +
+                    "duplicateRemoteRowSamples=${stats.duplicateRemoteRowSamples.joinToString(limit = 10)}"
+            )
         }
         return pulledLogs
     }
@@ -929,9 +1035,10 @@ class SheetsRemoteDataSource @Inject constructor(
         hangMuc: String,
         tinhTrangThietBi: String
     ): String {
+        val normalizedDate = DateTextFormatter.formatForDisplay(ngayPhatHien)
         val parts = listOf(
             normalizeKeyText(maThietBi),
-            normalizeKeyText(ngayPhatHien),
+            normalizeKeyText(normalizedDate),
             normalizeKeyText(hangMuc),
             normalizeKeyText(tinhTrangThietBi)
         )
@@ -1055,6 +1162,7 @@ class SheetsRemoteDataSource @Inject constructor(
 
         val rowByRecordId = mutableMapOf<String, Int>()
         val rowByFallbackKey = mutableMapOf<String, Int>()
+        val ambiguousFallbackKeys = mutableSetOf<String>()
         val rowValuesByRowNumber = mutableMapOf<Int, List<String>>()
 
         rows.forEach { row ->
@@ -1078,7 +1186,12 @@ class SheetsRemoteDataSource @Inject constructor(
                 tinhTrangThietBi = tinhTrang
             )
             if (key.isNotBlank() && key != "|||") {
-                rowByFallbackKey[key] = row.rowNumber
+                if (rowByFallbackKey.containsKey(key)) {
+                    rowByFallbackKey.remove(key)
+                    ambiguousFallbackKeys += key
+                } else if (!ambiguousFallbackKeys.contains(key)) {
+                    rowByFallbackKey[key] = row.rowNumber
+                }
             }
         }
 
@@ -1088,6 +1201,7 @@ class SheetsRemoteDataSource @Inject constructor(
             rows = rows,
             rowByRecordId = rowByRecordId,
             rowByFallbackKey = rowByFallbackKey,
+            ambiguousFallbackKeys = ambiguousFallbackKeys,
             rowValuesByRowNumber = rowValuesByRowNumber
         )
     }
@@ -1107,12 +1221,18 @@ class SheetsRemoteDataSource @Inject constructor(
         val values: List<String>
     )
 
+    private data class DmbtPulledLogRow(
+        val rowNumber: Int,
+        val log: DeviceLog
+    )
+
     private data class DmbtSheetSchema(
         val rawHeaders: List<String>,
         val headerIndexByColumn: Map<String, Int>,
         val rows: List<DmbtDataRow>,
         val rowByRecordId: Map<String, Int>,
         val rowByFallbackKey: Map<String, Int>,
+        val ambiguousFallbackKeys: Set<String>,
         val rowValuesByRowNumber: Map<Int, List<String>>
     ) {
         fun valueFromRow(rowValues: List<String>, column: String): String {
@@ -1124,10 +1244,18 @@ class SheetsRemoteDataSource @Inject constructor(
             log: DeviceLog,
             keyBuilder: (String, String, String, String) -> String
         ): Int? {
+            val fallbackKey = keyBuilder(
+                log.maThietBi,
+                log.ngayPhatHien,
+                log.hangMuc,
+                log.tinhTrangThietBi
+            )
             return rowByRecordId[log.recordId]
-                ?: rowByFallbackKey[
-                    keyBuilder(log.maThietBi, log.ngayPhatHien, log.hangMuc, log.tinhTrangThietBi)
-                ]
+                ?: resolveFallbackRowNumber(
+                    fallbackKey = fallbackKey,
+                    rowByFallbackKey = rowByFallbackKey,
+                    ambiguousFallbackKeys = ambiguousFallbackKeys
+                )
         }
 
         fun mergeRowValues(existingRow: List<String>, rowByContractColumn: Map<String, String>): List<String> {
@@ -1184,11 +1312,24 @@ class SheetsRemoteDataSource @Inject constructor(
         }
     }
 
+    internal data class RepairDataRow(
+        val rowNumber: Int,
+        val values: List<String>
+    )
+
+    internal enum class RepairSheetMode {
+        TECHNICAL,
+        REAL_DMBT_STYLE
+    }
+
     internal data class RepairSheetSchema(
         val rawHeaders: List<String>,
         val headerIndexByColumn: Map<String, Int>,
         val rowByRecordId: Map<String, Int>,
-        val rowValuesByRowNumber: Map<Int, List<String>>
+        val rowValuesByRowNumber: Map<Int, List<String>>,
+        val rows: List<RepairDataRow>,
+        val headerRowIndex: Int,
+        val mode: RepairSheetMode
     ) {
         fun valueFromRow(rowValues: List<String>, column: String): String {
             val index = headerIndexByColumn[column] ?: return ""
@@ -1196,11 +1337,11 @@ class SheetsRemoteDataSource @Inject constructor(
         }
     }
 
-    suspend fun pullRepairLogs(): Result<List<DmbtRepairUpdate>> {
+    suspend fun pullRepairLogs(optional: Boolean = false): Result<List<DmbtRepairUpdate>> {
         val repairSheetId = sheetConfig.sheetId(SheetRole.DMBT_REPAIR_LOG)
             ?: return Result.success(emptyList())
 
-        return runCatching {
+        val result = runCatching {
             withContext(Dispatchers.IO) {
                 val accessToken = requireAccessToken()
                 val metadata = fetchSpreadsheetMetadata(accessToken)
@@ -1212,40 +1353,15 @@ class SheetsRemoteDataSource @Inject constructor(
                 val gridRows = fetchGridRows(sheetTitle = repairSheetTitle, accessToken = accessToken)
                 if (gridRows.isEmpty()) return@withContext emptyList()
 
-                val schema = parseRepairSchema(gridRows)
-
-                gridRows
-                    .drop(1)
-                    .mapNotNull { rowValues ->
-                        val recordIdIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.RECORD_ID]
-                        val recordId = rowValues.getOrNull(recordIdIndex ?: return@mapNotNull null).orEmpty().trim()
-                        if (recordId.isBlank()) return@mapNotNull null
-
-                        val maThietBiIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.MA_THIET_BI]
-                        val maThietBi = rowValues.getOrNull(maThietBiIndex ?: return@mapNotNull null).orEmpty().trim()
-                        if (maThietBi.isBlank()) return@mapNotNull null
-
-                        val ngaySuaChuaIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.NGAY_SUA_CHUA]
-                        val ngaySuaRaw = rowValues.getOrNull(ngaySuaChuaIndex ?: return@mapNotNull null).orEmpty().trim()
-                        val ngaySuaChua = ngaySuaRaw.takeIf { it.isNotBlank() }
-
-                        val ghiChuIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.GHI_CHU]
-                        val ghiChu = rowValues.getOrNull(ghiChuIndex ?: return@mapNotNull null).orEmpty().trim()
-
-                        val updatedAtIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.UPDATED_AT]
-                        val updatedAtRaw = rowValues.getOrNull(updatedAtIndex ?: return@mapNotNull null).orEmpty().trim()
-                        val updatedAt = updatedAtRaw.toLongOrNull() ?: 0L
-
-                        DmbtRepairUpdate(
-                            recordId = recordId,
-                            maThietBi = maThietBi,
-                            ngaySuaChua = ngaySuaChua,
-                            ghiChu = ghiChu,
-                            updatedAt = updatedAt
-                        )
-                    }
+                parseRepairRows(gridRows)
             }
         }
+        val resolved = resolveOptionalRepairPullResult(result, optional)
+        if (optional && result.isFailure) {
+            val message = result.exceptionOrNull()?.message ?: "unknown repair pull error"
+            Log.w(TAG, "pullRepairLogs optional failed: $message")
+        }
+        return resolved
     }
 
     companion object {
@@ -1270,13 +1386,104 @@ class SheetsRemoteDataSource @Inject constructor(
             return DmbtPulledRecordIdentity(recordId = recordId, sourceSheetId = sheetId)
         }
 
+        internal fun buildDmbtPullSheetStats(
+            sheetId: Int,
+            sheetTitle: String,
+            pulledLogs: List<DeviceLog>,
+            skippedInvalidRows: Int,
+            rowNumbersByRecordId: Map<String, List<Int>> = emptyMap(),
+            skippedInvalidRowSamples: List<Int> = emptyList()
+        ): DmbtPullSheetStats {
+            val remoteIds = pulledLogs.map { it.recordId }
+            val uniqueRemoteIds = remoteIds.toSet().size
+            val duplicateRemoteIdSamples = remoteIds
+                .groupingBy { it }
+                .eachCount()
+                .filterValues { count -> count > 1 }
+                .keys
+                .take(10)
+            val duplicateRemoteRowSamples = duplicateRemoteIdSamples.map { recordId ->
+                DmbtDuplicateRemoteIdSample(
+                    recordId = recordId,
+                    rowNumbers = rowNumbersByRecordId[recordId].orEmpty()
+                )
+            }
+            return DmbtPullSheetStats(
+                sheetId = sheetId,
+                sheetTitle = sheetTitle,
+                fetchedRows = pulledLogs.size,
+                uniqueRemoteIds = uniqueRemoteIds,
+                duplicateRemoteIds = pulledLogs.size - uniqueRemoteIds,
+                duplicateRemoteIdSamples = duplicateRemoteIdSamples,
+                duplicateRemoteRowSamples = duplicateRemoteRowSamples,
+                skippedInvalidRows = skippedInvalidRows
+                    .coerceAtLeast(skippedInvalidRowSamples.size),
+                skippedInvalidRowSamples = skippedInvalidRowSamples.take(10)
+            )
+        }
+
+        internal fun buildDmbtSheetIssueReports(
+            sheetTitle: String,
+            stats: DmbtPullSheetStats,
+            pulledLogs: List<DeviceLog>
+        ): List<DmbtSheetIssueReport> {
+            val firstLogByRecordId = pulledLogs.associateBy { it.recordId }
+            val duplicateIssues = stats.duplicateRemoteRowSamples.map { sample ->
+                val log = firstLogByRecordId[sample.recordId]
+                DmbtSheetIssueReport(
+                    type = DmbtSheetIssueType.DUPLICATE_IDENTITY,
+                    sheetId = stats.sheetId,
+                    sheetTitle = sheetTitle,
+                    deviceCode = log?.maThietBi.orEmpty(),
+                    discoveryDate = log?.ngayPhatHien.orEmpty(),
+                    description = log?.tinhTrangThietBi.orEmpty(),
+                    rowNumbers = sample.rowNumbers
+                )
+            }
+            val invalidDateIssues = stats.skippedInvalidRowSamples.map { rowNumber ->
+                DmbtSheetIssueReport(
+                    type = DmbtSheetIssueType.INVALID_DISCOVERY_DATE,
+                    sheetId = stats.sheetId,
+                    sheetTitle = sheetTitle,
+                    deviceCode = "",
+                    discoveryDate = "",
+                    description = "",
+                    rowNumbers = listOf(rowNumber)
+                )
+            }
+            return (duplicateIssues + invalidDateIssues).take(20)
+        }
+
         internal fun groupDmbtLogsByTargetSheet(
             logs: List<DeviceLog>,
-            defaultCreateSheetId: Int?
+            defaultCreateSheetId: Int?,
+            configuredDmbtSheetIds: Set<Int> = emptySet()
         ): Map<Int, List<DeviceLog>> {
+            val hasMultipleConfiguredSheets = configuredDmbtSheetIds.size > 1
             return logs
                 .mapNotNull { log ->
-                    val targetSheetId = log.sourceSheetId ?: defaultCreateSheetId ?: return@mapNotNull null
+                    val targetSheetId = when {
+                        log.sourceSheetId != null -> {
+                            val sourceSheetId = log.sourceSheetId
+                            if (configuredDmbtSheetIds.isEmpty() || configuredDmbtSheetIds.contains(sourceSheetId)) {
+                                sourceSheetId
+                            } else {
+                                null
+                            }
+                        }
+                        else -> {
+                            val recordSheetId = extractReadonlyDmbtSheetId(log.recordId)
+                            when {
+                                recordSheetId != null &&
+                                    (configuredDmbtSheetIds.isEmpty() || configuredDmbtSheetIds.contains(recordSheetId)) ->
+                                    recordSheetId
+                                defaultCreateSheetId != null &&
+                                    (!hasMultipleConfiguredSheets || isSafeForDefaultRouting(log.recordId)) ->
+                                    defaultCreateSheetId
+                                else -> null
+                            }
+                        }
+                    } ?: return@mapNotNull null
                     targetSheetId to log
                 }
                 .groupBy(keySelector = { it.first }, valueTransform = { it.second })
@@ -1292,6 +1499,48 @@ class SheetsRemoteDataSource @Inject constructor(
             }
         }
 
+        internal fun isYearlyDmbtSheetFailureFatal(sheetId: Int, yearlySheetIds: Set<Int>): Boolean {
+            return yearlySheetIds.contains(sheetId)
+        }
+
+        internal fun resolveOptionalRepairPullResult(
+            result: Result<List<DmbtRepairUpdate>>,
+            optional: Boolean
+        ): Result<List<DmbtRepairUpdate>> {
+            return if (optional && result.isFailure && isOptionalRepairFailureRecoverable(result.exceptionOrNull())) {
+                Result.success(emptyList())
+            } else {
+                result
+            }
+        }
+
+        internal fun isOptionalRepairFailureRecoverable(error: Throwable?): Boolean {
+            val message = error?.message?.lowercase(Locale.ROOT).orEmpty()
+            return message.contains("cannot resolve title") ||
+                message.contains("missing title") ||
+                message.contains("sheetid") ||
+                message.contains("sheet is empty")
+        }
+
+        internal fun validateDmbtProvenanceConfig(
+            bindings: List<SheetConfig.DmbtSheetBinding>,
+            yearlySheetIds: Set<Int>
+        ): Result<Unit> {
+            if (bindings.isEmpty()) {
+                return Result.failure(
+                    NonRetryableSyncException("Missing DMBT sheet bindings in config.")
+                )
+            }
+            if (yearlySheetIds.isEmpty()) {
+                return Result.failure(
+                    NonRetryableSyncException(
+                        "Missing yearly DMBT sheet bindings. Monthly-only config is not allowed for full DMBT sync."
+                    )
+                )
+            }
+            return Result.success(Unit)
+        }
+
         internal fun dedupeDmbtLogsForPush(targetSheetId: Int, logs: List<DeviceLog>): List<DeviceLog> {
             val latestBySheetRecordId = linkedMapOf<String, DeviceLog>()
             logs.forEach { log ->
@@ -1304,13 +1553,53 @@ class SheetsRemoteDataSource @Inject constructor(
                     latestBySheetRecordId[sheetRecordId] = log
                 }
             }
-            return latestBySheetRecordId.values.sortedBy { it.updatedAt }
+            val sorted = latestBySheetRecordId.values.toMutableList()
+            sorted.sortWith(java.util.Comparator { left, right ->
+                left.updatedAt.compareTo(right.updatedAt)
+            })
+            return sorted
         }
 
         internal fun resolveDmbtSheetRecordId(targetSheetId: Int, recordId: String): String {
             val trimmed = recordId.trim()
             val legacyPrefix = "readonly-dmbt-$targetSheetId-"
-            return trimmed.removePrefix(legacyPrefix)
+            if (trimmed.startsWith(legacyPrefix)) {
+                return trimmed.removePrefix(legacyPrefix)
+            }
+            return trimmed
+        }
+
+        internal fun resolveFallbackRowNumber(
+            fallbackKey: String,
+            rowByFallbackKey: Map<String, Int>,
+            ambiguousFallbackKeys: Set<String>
+        ): Int? {
+            if (ambiguousFallbackKeys.contains(fallbackKey)) {
+                throw NonRetryableSyncException(
+                    "Ambiguous DMBT fallback key for push: '$fallbackKey'. Skip append/update to avoid duplicate."
+                )
+            }
+            return rowByFallbackKey[fallbackKey]
+        }
+
+        internal fun extractReadonlyDmbtSheetId(recordId: String): Int? {
+            val match = Regex("^readonly-dmbt-(\\d+)-").find(recordId.trim()) ?: return null
+            return match.groupValues.getOrNull(1)?.toIntOrNull()
+        }
+
+        private fun isSafeForDefaultRouting(recordId: String): Boolean {
+            val trimmed = recordId.trim()
+            return trimmed.startsWith("dmbt-auto-")
+        }
+
+        internal fun parsePulledDmbtRowsForTest(
+            sheetId: Int,
+            gridRows: List<List<String>>,
+            namespaceRecordIds: Boolean
+        ): List<DeviceLog> {
+            if (gridRows.isEmpty()) return emptyList()
+            val parser = TestDmbtPullParser(sheetId, namespaceRecordIds)
+            return parser.parse(gridRows)
         }
 
         /**
@@ -1322,22 +1611,90 @@ class SheetsRemoteDataSource @Inject constructor(
                 throw NonRetryableSyncException("DMBT_REPAIR_LOG sheet is empty.")
             }
 
-            val rawHeaders = gridRows.first().map { it.trim() }
-            if (rawHeaders.isEmpty()) {
-                throw NonRetryableSyncException("DMBT_REPAIR_LOG header row is empty.")
-            }
-            val normalizedLooseHeaders = rawHeaders.map { value ->
-                val withoutAccent = java.text.Normalizer.normalize(value.trim().lowercase(), java.text.Normalizer.Form.NFD)
-                    .replace(Regex("\\p{M}+"), "")
-                withoutAccent
-                    .replace(Regex("[^a-z0-9]+"), "_")
-                    .trim('_')
-            }
+            val aliasByColumn = mapOf(
+                DmbtRepairLogColumns.RECORD_ID to setOf("record_id", "id"),
+                DmbtRepairLogColumns.MA_THIET_BI to setOf("ma_thiet_bi", "ma_thiet_bi_", "ma_thietbi", "ma_thiet_bi__"),
+                DmbtRepairLogColumns.NGAY_SUA_CHUA to setOf("ngay_sua_chua", "ngay_sua_chua_"),
+                DmbtRepairLogColumns.GHI_CHU to setOf("ghi_chu", "ghi_chu_"),
+                DmbtRepairLogColumns.UPDATED_AT to setOf("updated_at"),
+                DmbtLogColumns.NGAY_PHAT_HIEN to setOf("ngay_phat_hien", "ngay_phat_hien_"),
+                DmbtLogColumns.HANG_MUC to setOf("hang_muc", "hang_muc_"),
+                DmbtLogColumns.TINH_TRANG_THIET_BI to setOf("tinh_trang_thiet_bi", "tinh_trang_thiet_bi_")
+            )
 
-            val duplicateHeaders = normalizedLooseHeaders
+            val technicalRequired = listOf(
+                DmbtRepairLogColumns.RECORD_ID,
+                DmbtRepairLogColumns.MA_THIET_BI,
+                DmbtRepairLogColumns.NGAY_SUA_CHUA,
+                DmbtRepairLogColumns.GHI_CHU,
+                DmbtRepairLogColumns.UPDATED_AT
+            )
+            val realSheetRequired = listOf(
+                DmbtRepairLogColumns.MA_THIET_BI,
+                DmbtLogColumns.NGAY_PHAT_HIEN,
+                DmbtLogColumns.HANG_MUC,
+                DmbtLogColumns.TINH_TRANG_THIET_BI,
+                DmbtRepairLogColumns.NGAY_SUA_CHUA,
+                DmbtRepairLogColumns.GHI_CHU
+            )
+
+            data class RepairHeaderCandidate(
+                val rowIndex: Int,
+                val rawHeaders: List<String>,
+                val normalizedHeaders: List<String>,
+                val headerIndexByColumn: Map<String, Int>,
+                val mode: RepairSheetMode,
+                val score: Int
+            )
+
+            val candidates = gridRows
+                .take(12)
+                .mapIndexedNotNull { rowIndex, row ->
+                    val rawHeaders = row.map { it.trim() }
+                    if (rawHeaders.isEmpty()) return@mapIndexedNotNull null
+                    val normalizedHeaders = rawHeaders.map(::normalizeLooseHeaderValue)
+                    val headerIndexByColumn = aliasByColumn.mapValues { (_, aliases) ->
+                        normalizedHeaders.indexOfFirst { aliases.contains(it) }.takeIf { it >= 0 }
+                    }.mapNotNull { (column, index) ->
+                        index?.let { column to it }
+                    }.toMap()
+
+                    val technicalScore = technicalRequired.count { headerIndexByColumn[it] != null }
+                    val realScore = realSheetRequired.count { headerIndexByColumn[it] != null }
+                    val hasTechnicalCore = headerIndexByColumn[DmbtRepairLogColumns.MA_THIET_BI] != null &&
+                        headerIndexByColumn[DmbtRepairLogColumns.NGAY_SUA_CHUA] != null &&
+                        headerIndexByColumn[DmbtRepairLogColumns.GHI_CHU] != null
+                    val mode = when {
+                        realScore == realSheetRequired.size -> RepairSheetMode.REAL_DMBT_STYLE
+                        hasTechnicalCore && technicalScore >= 4 -> RepairSheetMode.TECHNICAL
+                        else -> null
+                    } ?: return@mapIndexedNotNull null
+
+                    val score = when (mode) {
+                        RepairSheetMode.TECHNICAL -> 200 + technicalScore
+                        RepairSheetMode.REAL_DMBT_STYLE -> 100 + realScore
+                    }
+                    RepairHeaderCandidate(
+                        rowIndex = rowIndex,
+                        rawHeaders = rawHeaders,
+                        normalizedHeaders = normalizedHeaders,
+                        headerIndexByColumn = headerIndexByColumn,
+                        mode = mode,
+                        score = score
+                    )
+                }
+
+            val header = candidates
+                .sortedWith(compareByDescending<RepairHeaderCandidate> { it.score }.thenBy { it.rowIndex })
+                .firstOrNull()
+                ?: throw NonRetryableSyncException(
+                    "Cannot detect DMBT_REPAIR_LOG header row. Expected repair technical columns or full DMBT-like columns."
+                )
+
+            val duplicateHeaders = header.normalizedHeaders
                 .filter { it.isNotBlank() }
                 .groupBy { it }
-                .filter { it.value.size > 1 }
+                .filterValues { it.size > 1 }
                 .keys
             if (duplicateHeaders.isNotEmpty()) {
                 throw NonRetryableSyncException(
@@ -1345,54 +1702,41 @@ class SheetsRemoteDataSource @Inject constructor(
                 )
             }
 
-            val aliasByColumn = mapOf(
-                DmbtRepairLogColumns.RECORD_ID to setOf("record_id", "id"),
-                DmbtRepairLogColumns.MA_THIET_BI to setOf("ma_thiet_bi", "ma_thiet_bi_", "ma_thietbi"),
-                DmbtRepairLogColumns.NGAY_SUA_CHUA to setOf("ngay_sua_chua", "ngay_sua_chua_"),
-                DmbtRepairLogColumns.GHI_CHU to setOf("ghi_chu", "ghi_chu_"),
-                DmbtRepairLogColumns.UPDATED_AT to setOf("updated_at")
-            )
-
-            val headerIndexByColumn = aliasByColumn.mapValues { (_, aliases) ->
-                normalizedLooseHeaders.indexOfFirst { aliases.contains(it) }.takeIf { it >= 0 }
+            val missingRequired = when (header.mode) {
+                RepairSheetMode.TECHNICAL -> technicalRequired.filter { header.headerIndexByColumn[it] == null }
+                RepairSheetMode.REAL_DMBT_STYLE -> realSheetRequired.filter { header.headerIndexByColumn[it] == null }
             }
-
-            val requiredMissing = listOf(
-                DmbtRepairLogColumns.RECORD_ID,
-                DmbtRepairLogColumns.MA_THIET_BI,
-                DmbtRepairLogColumns.NGAY_SUA_CHUA,
-                DmbtRepairLogColumns.GHI_CHU,
-                DmbtRepairLogColumns.UPDATED_AT
-            ).filter { headerIndexByColumn[it] == null }
-            if (requiredMissing.isNotEmpty()) {
+            if (missingRequired.isNotEmpty()) {
                 throw NonRetryableSyncException(
-                    "DMBT_REPAIR_LOG missing required columns: ${requiredMissing.joinToString(", ")}"
+                    "DMBT_REPAIR_LOG missing required columns for mode ${header.mode}: ${missingRequired.joinToString(", ")}"
                 )
             }
 
+            val rows = gridRows.drop(header.rowIndex + 1).mapIndexed { dataIndex, values ->
+                RepairDataRow(
+                    rowNumber = header.rowIndex + 2 + dataIndex,
+                    values = values
+                )
+            }
             val rowByRecordId = mutableMapOf<String, Int>()
             val rowValuesByRowNumber = mutableMapOf<Int, List<String>>()
-
-            val recordIdIndex = headerIndexByColumn[DmbtRepairLogColumns.RECORD_ID]
-                ?: throw NonRetryableSyncException("DMBT_REPAIR_LOG missing required column: ${DmbtRepairLogColumns.RECORD_ID}")
-
-            gridRows.drop(1).forEachIndexed { index, row ->
-                val rowNumber = index + 2
-                rowValuesByRowNumber[rowNumber] = row
-
-                val recordId = row.getOrNull(recordIdIndex).orEmpty().trim()
+            val recordIdIndex = header.headerIndexByColumn[DmbtRepairLogColumns.RECORD_ID]
+            rows.forEach { row ->
+                rowValuesByRowNumber[row.rowNumber] = row.values
+                val recordId = row.values.getOrNull(recordIdIndex ?: -1).orEmpty().trim()
                 if (recordId.isNotBlank()) {
-                    rowByRecordId[recordId] = rowNumber
+                    rowByRecordId[recordId] = row.rowNumber
                 }
             }
 
             return RepairSheetSchema(
-                rawHeaders = rawHeaders,
-                headerIndexByColumn = headerIndexByColumn.mapNotNull { (column, index) ->
-                    index?.let { column to it }
-                }.toMap(),
+                rawHeaders = header.rawHeaders,
+                headerIndexByColumn = header.headerIndexByColumn,
                 rowByRecordId = rowByRecordId,
-                rowValuesByRowNumber = rowValuesByRowNumber
+                rowValuesByRowNumber = rowValuesByRowNumber,
+                rows = rows,
+                headerRowIndex = header.rowIndex,
+                mode = header.mode
             )
         }
 
@@ -1401,30 +1745,24 @@ class SheetsRemoteDataSource @Inject constructor(
          * Exposed for unit testing without network access.
          */
         internal fun parseRepairRows(gridRows: List<List<String>>): List<DmbtRepairUpdate> {
-            if (gridRows.size <= 1) return emptyList()
+            if (gridRows.isEmpty()) return emptyList()
 
             val schema = parseRepairSchema(gridRows)
 
-            return gridRows
-                .drop(1)
+            return schema.rows
                 .mapNotNull { rowValues ->
-                    val recordIdIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.RECORD_ID]
-                    val recordId = rowValues.getOrNull(recordIdIndex ?: return@mapNotNull null).orEmpty().trim()
-                    if (recordId.isBlank()) return@mapNotNull null
-
-                    val maThietBiIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.MA_THIET_BI]
-                    val maThietBi = rowValues.getOrNull(maThietBiIndex ?: return@mapNotNull null).orEmpty().trim()
+                    val row = rowValues.values
+                    val recordId = schema.valueFromRow(row, DmbtRepairLogColumns.RECORD_ID)
+                    val maThietBi = schema.valueFromRow(row, DmbtRepairLogColumns.MA_THIET_BI)
                     if (maThietBi.isBlank()) return@mapNotNull null
 
-                    val ngaySuaChuaIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.NGAY_SUA_CHUA]
-                    val ngaySuaRaw = rowValues.getOrNull(ngaySuaChuaIndex ?: return@mapNotNull null).orEmpty().trim()
+                    val ngaySuaRaw = schema.valueFromRow(row, DmbtRepairLogColumns.NGAY_SUA_CHUA)
                     val ngaySuaChua = ngaySuaRaw.takeIf { it.isNotBlank() }
 
-                    val ghiChuIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.GHI_CHU]
-                    val ghiChu = rowValues.getOrNull(ghiChuIndex ?: return@mapNotNull null).orEmpty().trim()
+                    val ghiChu = schema.valueFromRow(row, DmbtRepairLogColumns.GHI_CHU)
+                    if (ngaySuaChua == null && ghiChu.isBlank()) return@mapNotNull null
 
-                    val updatedAtIndex = schema.headerIndexByColumn[DmbtRepairLogColumns.UPDATED_AT]
-                    val updatedAtRaw = rowValues.getOrNull(updatedAtIndex ?: return@mapNotNull null).orEmpty().trim()
+                    val updatedAtRaw = schema.valueFromRow(row, DmbtRepairLogColumns.UPDATED_AT)
                     val updatedAt = updatedAtRaw.toLongOrNull() ?: 0L
 
                     DmbtRepairUpdate(
@@ -1432,9 +1770,162 @@ class SheetsRemoteDataSource @Inject constructor(
                         maThietBi = maThietBi,
                         ngaySuaChua = ngaySuaChua,
                         ghiChu = ghiChu,
-                        updatedAt = updatedAt
+                        updatedAt = updatedAt,
+                        ngayPhatHien = schema.valueFromRow(row, DmbtLogColumns.NGAY_PHAT_HIEN).ifBlank { null },
+                        hangMuc = schema.valueFromRow(row, DmbtLogColumns.HANG_MUC).ifBlank { null },
+                        tinhTrangThietBi = schema.valueFromRow(row, DmbtLogColumns.TINH_TRANG_THIET_BI).ifBlank { null }
                     )
                 }
+        }
+
+        private fun normalizeLooseHeaderValue(value: String): String {
+            val withoutAccent = Normalizer.normalize(value.trim().lowercase(Locale.ROOT), Normalizer.Form.NFD)
+                .replace(Regex("\\p{M}+"), "")
+            return withoutAccent
+                .replace(Regex("[^a-z0-9]+"), "_")
+                .trim('_')
+        }
+
+        private fun normalizeKeyTextForTest(value: String): String {
+            return Normalizer.normalize(value.trim().lowercase(Locale.ROOT), Normalizer.Form.NFD)
+                .replace(Regex("\\p{M}+"), "")
+                .replace(Regex("[^a-z0-9]+"), "_")
+                .trim('_')
+        }
+
+        private fun buildDmbtMatchKeyForTest(
+            maThietBi: String,
+            ngayPhatHien: String,
+            hangMuc: String,
+            tinhTrangThietBi: String
+        ): String {
+            val normalizedDate = DateTextFormatter.formatForDisplay(ngayPhatHien)
+            return listOf(
+                normalizeKeyTextForTest(maThietBi),
+                normalizeKeyTextForTest(normalizedDate),
+                normalizeKeyTextForTest(hangMuc),
+                normalizeKeyTextForTest(tinhTrangThietBi)
+            ).joinToString("|")
+        }
+
+        private fun buildDmbtFallbackRecordIdForTest(
+            maThietBi: String,
+            ngayPhatHien: String,
+            hangMuc: String,
+            tinhTrangThietBi: String,
+            rowNumber: Int
+        ): String {
+            val base = buildDmbtMatchKeyForTest(maThietBi, ngayPhatHien, hangMuc, tinhTrangThietBi)
+            val compact = base.replace("|", "-").ifBlank { "row-$rowNumber-${UUID.randomUUID()}" }
+            return "dmbt-auto-$compact"
+        }
+
+        private class TestDmbtPullParser(
+            private val sheetId: Int,
+            private val namespaceRecordIds: Boolean
+        ) {
+            fun parse(gridRows: List<List<String>>): List<DeviceLog> {
+                val header = detectHeader(gridRows)
+                return gridRows
+                    .drop(header.rowIndex + 1)
+                    .mapIndexedNotNull { dataIndex, row ->
+                        val rowNumber = header.rowIndex + 2 + dataIndex
+                        val maThietBi = value(row, header, DmbtLogColumns.MA_THIET_BI).trim()
+                        if (maThietBi.isBlank()) return@mapIndexedNotNull null
+                        val hangMuc = value(row, header, DmbtLogColumns.HANG_MUC).trim()
+                        val nguoiBaoCao = value(row, header, DmbtLogColumns.NGUOI_BAO_CAO).trim()
+                        val tinhTrang = value(row, header, DmbtLogColumns.TINH_TRANG_THIET_BI).trim()
+                        val ktvPhuTrach = value(row, header, DmbtLogColumns.KTV_PHU_TRACH).trim()
+                        val ngayPhatHienRaw = value(row, header, DmbtLogColumns.NGAY_PHAT_HIEN).trim()
+                        val ngayPhatHien = DateTextFormatter.normalizeInputOrNull(ngayPhatHienRaw)
+                            ?: DateTextFormatter.formatForDisplay(ngayPhatHienRaw)
+                        if (ngayPhatHien.isBlank() || ngayPhatHien == "--") return@mapIndexedNotNull null
+                        val ngaySuaRaw = value(row, header, DmbtLogColumns.NGAY_SUA_CHUA).trim()
+                        val ngaySua = DateTextFormatter.normalizeInputOrNull(ngaySuaRaw)
+                            ?: DateTextFormatter.formatForDisplay(ngaySuaRaw)
+                        val ngaySuaChua = ngaySua.takeIf { it.isNotBlank() && it != "--" }
+                        val ghiChu = value(row, header, DmbtLogColumns.GHI_CHU).trim()
+                        val baseRecordId = value(row, header, DmbtLogColumns.RECORD_ID).trim().ifBlank {
+                            buildDmbtFallbackRecordIdForTest(
+                                maThietBi = maThietBi,
+                                ngayPhatHien = ngayPhatHien,
+                                hangMuc = hangMuc,
+                                tinhTrangThietBi = tinhTrang,
+                                rowNumber = rowNumber
+                            )
+                        }
+                        val updatedAt = value(row, header, DmbtLogColumns.UPDATED_AT).trim().toLongOrNull()
+                            ?: System.currentTimeMillis()
+                        val identity = dmbtPulledRecordIdentity(sheetId, baseRecordId, namespaceRecordIds)
+                        DeviceLog(
+                            recordId = identity.recordId,
+                            maThietBi = maThietBi,
+                            hangMuc = hangMuc,
+                            nguoiBaoCao = nguoiBaoCao,
+                            tinhTrangThietBi = tinhTrang,
+                            ktvPhuTrach = ktvPhuTrach,
+                            ngayPhatHien = ngayPhatHien,
+                            ngaySuaChua = ngaySuaChua,
+                            ghiChu = ghiChu,
+                            updatedAt = updatedAt,
+                            sourceSheetId = identity.sourceSheetId
+                        )
+                    }
+            }
+
+            private fun value(row: List<String>, header: Header, column: String): String {
+                val index = header.indexByColumn[column] ?: return ""
+                return row.getOrNull(index).orEmpty()
+            }
+
+            private fun detectHeader(gridRows: List<List<String>>): Header {
+                val aliasByColumn = mapOf(
+                    DmbtLogColumns.RECORD_ID to setOf("record_id", "id"),
+                    DmbtLogColumns.MA_THIET_BI to setOf("ma_thiet_bi", "ma_thiet_bi_", "ma_thietbi", "ma_thiet_bi__"),
+                    DmbtLogColumns.HANG_MUC to setOf("hang_muc", "hang_muc_"),
+                    DmbtLogColumns.NGUOI_BAO_CAO to setOf("nguoi_bao_cao", "nguoi_bao_cao_"),
+                    DmbtLogColumns.TINH_TRANG_THIET_BI to setOf("tinh_trang_thiet_bi", "tinh_trang_thiet_bi_"),
+                    DmbtLogColumns.KTV_PHU_TRACH to setOf("ktv_phu_trach", "ktv_phu_trach_nhan_thong_tin", "ktv_phu_trach_"),
+                    DmbtLogColumns.NGAY_PHAT_HIEN to setOf("ngay_phat_hien", "ngay_phat_hien_"),
+                    DmbtLogColumns.NGAY_SUA_CHUA to setOf("ngay_sua_chua", "ngay_sua_chua_"),
+                    DmbtLogColumns.GHI_CHU to setOf("ghi_chu", "ghi_chu_"),
+                    DmbtLogColumns.UPDATED_AT to setOf("updated_at")
+                )
+                val required = listOf(
+                    DmbtLogColumns.MA_THIET_BI,
+                    DmbtLogColumns.HANG_MUC,
+                    DmbtLogColumns.NGUOI_BAO_CAO,
+                    DmbtLogColumns.TINH_TRANG_THIET_BI,
+                    DmbtLogColumns.KTV_PHU_TRACH,
+                    DmbtLogColumns.NGAY_PHAT_HIEN,
+                    DmbtLogColumns.NGAY_SUA_CHUA,
+                    DmbtLogColumns.GHI_CHU
+                )
+                val best = gridRows
+                    .take(12)
+                    .mapIndexedNotNull { rowIndex, row ->
+                        val normalized = row.map(::normalizeLooseHeaderValue)
+                        val indexByColumn = aliasByColumn.mapValues { (_, aliases) ->
+                            normalized.indexOfFirst { aliases.contains(it) }.takeIf { it >= 0 }
+                        }.mapNotNull { (column, index) ->
+                            index?.let { column to it }
+                        }.toMap()
+                        val score = required.count { indexByColumn[it] != null }
+                        if (score < 5 || indexByColumn[DmbtLogColumns.MA_THIET_BI] == null) return@mapIndexedNotNull null
+                        Header(rowIndex, row.map { it.trim() }, indexByColumn, score)
+                    }
+                    .sortedWith(compareByDescending<Header> { it.score }.thenBy { it.rowIndex })
+                    .firstOrNull()
+                    ?: throw NonRetryableSyncException("Cannot detect DMBT_LOG header row for test parser.")
+                return best
+            }
+
+            private data class Header(
+                val rowIndex: Int,
+                val rawHeaders: List<String>,
+                val indexByColumn: Map<String, Int>,
+                val score: Int
+            )
         }
     }
 
@@ -1446,5 +1937,37 @@ class SheetsRemoteDataSource @Inject constructor(
     internal data class DmbtPulledRecordIdentity(
         val recordId: String,
         val sourceSheetId: Int
+    )
+
+    internal data class DmbtPullSheetStats(
+        val sheetId: Int,
+        val sheetTitle: String,
+        val fetchedRows: Int,
+        val uniqueRemoteIds: Int,
+        val duplicateRemoteIds: Int,
+        val duplicateRemoteIdSamples: List<String>,
+        val duplicateRemoteRowSamples: List<DmbtDuplicateRemoteIdSample>,
+        val skippedInvalidRows: Int,
+        val skippedInvalidRowSamples: List<Int>
+    )
+
+    internal data class DmbtDuplicateRemoteIdSample(
+        val recordId: String,
+        val rowNumbers: List<Int>
+    )
+
+    internal enum class DmbtSheetIssueType {
+        DUPLICATE_IDENTITY,
+        INVALID_DISCOVERY_DATE
+    }
+
+    internal data class DmbtSheetIssueReport(
+        val type: DmbtSheetIssueType,
+        val sheetId: Int,
+        val sheetTitle: String,
+        val deviceCode: String,
+        val discoveryDate: String,
+        val description: String,
+        val rowNumbers: List<Int>
     )
 }

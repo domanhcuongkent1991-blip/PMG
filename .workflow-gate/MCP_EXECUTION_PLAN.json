@@ -1,0 +1,265 @@
+﻿{
+    "advisor_version":  "2.0.0",
+    "policy":  {
+                   "policy_bundle_version":  "2.0.0",
+                   "policy_bundle_hash":  "abc46c1a1c37db13c17ea4072a177ae0759f457dce44c27b55eeedacc81ee1f1",
+                   "policy_files":  {
+                                        "project-profiles.json":  "6816b40d00a4c3d30d49bdbc1a040fc6f46dbdab808993f89e3a73ab9e933209",
+                                        "intent-classifier.json":  "8a0483f0488d6e8a545778fbe7bd2a51c4f20b81a0f65e3e713abe740f80d21d",
+                                        "security-baseline.json":  "5864a90d4dbfc8b796605215add726095bbd9a967eb043eee4397dee27651baf",
+                                        "project-registry.json":  "9b7836acddcd0e4f83eae9d944960875e8ef21d1535ed2d7d784001d27736d13",
+                                        "decision-matrix.json":  "c82e98498905d449507463aa40876c68986f12a2c6d96693e30684d7ddb31c74",
+                                        "auto-register-policy.json":  "b196246684d849cefb3a3366d4afdde2eded3408f872bdba11fa63dd54c5c1a5",
+                                        "workflow-policy-version.json":  "731f41ba65da108ff467918916efbb713c65d7179923bd678d13335c7bfb2be2",
+                                        "mcp-catalog.json":  "7a83aff8a96f7b9dbace55f408159f130bb66f73d22bb38b664bcc80b0bf80c8",
+                                        "project-archetypes.json":  "60ad1d5c47cb7c159588fcd994cea7c663f0428b8067e69bd71264d89c8fbd2e",
+                                        "stability-controls.json":  "86df58e51b9adbc71a338ced680cdd09a1082825ad46e405053f1cea2d2a3c03"
+                                    }
+               },
+    "input":  {
+                  "project_path":  "F:\\codex_android_gsheet_full_pack",
+                  "request_text":  "kiem tra mcp cho workflow",
+                  "forced_task_type":  null,
+                  "forced_data_class":  null,
+                  "auto_register_project":  false,
+                  "auto_register_approval_provided":  false,
+                  "workflow_environment":  "dev",
+                  "write_audit_log":  true,
+                  "auto_fix_codex_config":  true,
+                  "codex_config_preflight_skipped":  false
+              },
+    "codex_config_preflight":  {
+                                   "project_path":  "F:\\codex_android_gsheet_full_pack",
+                                   "config_path":  "F:\\codex_android_gsheet_full_pack\\.codex\\config.toml",
+                                   "exists":  true,
+                                   "status":  "compatible",
+                                   "auto_fix":  true,
+                                   "backup_created":  false,
+                                   "backup_path":  null,
+                                   "legacy_shape":  {
+                                                        "legacy_agents":  0,
+                                                        "modern_agents":  33,
+                                                        "legacy_hooks":  0,
+                                                        "modern_hooks":  1
+                                                    },
+                                   "final_shape":  {
+                                                       "legacy_agents":  0,
+                                                       "modern_agents":  33,
+                                                       "legacy_hooks":  0,
+                                                       "modern_hooks":  1
+                                                   },
+                                   "had_bom":  false,
+                                   "rewrote_without_bom":  false,
+                                   "changed":  false,
+                                   "notes":  [
+                                                 "Config already matches modern Codex schema."
+                                             ]
+                               },
+    "auto_registration":  {
+                              "attempted":  false,
+                              "environment":  "dev",
+                              "approval_required":  false,
+                              "approval_provided":  false,
+                              "action":  "not_requested",
+                              "details":  null
+                          },
+    "project_context":  {
+                            "project":  {
+                                            "path":  "F:\\codex_android_gsheet_full_pack",
+                                            "file_sample_count":  400
+                                        },
+                            "classification":  {
+                                                   "suggested_profile":  "platform-governance",
+                                                   "final_profile":  "android-local-first-restricted",
+                                                   "detected_data_class":  "restricted",
+                                                   "top_archetype":  "governance-workflow"
+                                               },
+                            "registry":  {
+                                             "matched_project_id":  "codex-android-gsheet-full-pack"
+                                         },
+                            "evidence":  {
+                                             "archetype_matches":  [
+                                                                       {
+                                                                           "archetype":  "node-web-app",
+                                                                           "score":  2,
+                                                                           "suggested_profile":  "web-standard",
+                                                                           "base_data_class":  "internal",
+                                                                           "matched_files":  [
+                                                                                                 "package.json"
+                                                                                             ],
+                                                                           "matched_keywords":  [
+
+                                                                                                ]
+                                                                       },
+                                                                       {
+                                                                           "archetype":  "governance-workflow",
+                                                                           "score":  2,
+                                                                           "suggested_profile":  "platform-governance",
+                                                                           "base_data_class":  "internal",
+                                                                           "matched_files":  [
+                                                                                                 "AGENTS.md"
+                                                                                             ],
+                                                                           "matched_keywords":  [
+
+                                                                                                ]
+                                                                       }
+                                                                   ],
+                                             "risk_signals":  [
+                                                                  {
+                                                                      "indicator":  "contains_secrets_material",
+                                                                      "matched_keywords":  [
+                                                                                               ".env",
+                                                                                               "secret"
+                                                                                           ],
+                                                                      "raise_data_class_to":  "restricted"
+                                                                  }
+                                                              ],
+                                             "sampled_files":  [
+                                                                   ".env.example",
+                                                                   ".env.example.bak.20260426-230239",
+                                                                   ".gitignore",
+                                                                   ".gitignore.bak.20260426-230239",
+                                                                   "AGENTS.md",
+                                                                   "AGENTS.md.bak.20260426-230013",
+                                                                   "AGENTS.md.bak.20260426-230239",
+                                                                   "ARCHITECTURE_DECISIONS.md",
+                                                                   "BUILD_NOTES.md",
+                                                                   "BUSINESS_RULES.md",
+                                                                   "CHECKLIST_Codex_MVP.md",
+                                                                   "DATA_MODEL.md",
+                                                                   "GOOGLE_SHEET_UI_MAPPING_TEMPLATE.md",
+                                                                   "MANDATORY_READING_RECEIPT_2026-04-26.md",
+                                                                   "MASTER_PROMPT.txt",
+                                                                   "MCP_SKILL_RULE_RUNBOOK.md",
+                                                                   "package-lock.json",
+                                                                   "package.json",
+                                                                   "PLAN_GOVERNANCE_GATES_2026-04-26.md",
+                                                                   "PROJECT_PLAN_TIGHTENED_V3_4_2026-04-26.md",
+                                                                   "PROJECT_SUMMARY.md",
+                                                                   "README.md",
+                                                                   "RULE_SKILL_CHANGE_PLAN_2026-04-26.md",
+                                                                   "SHEET_DATA_CONTRACT_MVP.md",
+                                                                   "SHEET_STRUCTURE_CHANGE_HANDLING.md",
+                                                                   "SKILL_SELECTION_REPORT_2026-04-26.md",
+                                                                   "SYNC_RULES.md",
+                                                                   "TASK_BREAKDOWN_MVP.md",
+                                                                   "TEST_PLAN.md",
+                                                                   "UAT_CHECKLIST_SYNC_LOCAL_FIRST.md",
+                                                                   "UI_UX_RULES.md",
+                                                                   "WEB_DATA_ASSESSMENT_gia-cay-opus.md",
+                                                                   "window_drawer.xml",
+                                                                   "window_drawer2.xml",
+                                                                   "window_dump.xml",
+                                                                   "window_hgt_screen.xml",
+                                                                   "window_hgt_screen2.xml",
+                                                                   "window_hgt_sidebar.xml",
+                                                                   "window_main2.xml",
+                                                                   "window_main3.xml",
+                                                                   "window_main4.xml",
+                                                                   "window_sync_status.xml",
+                                                                   "WORKLOG_2026-04-22.md",
+                                                                   "WORKLOG_2026-04-23.md",
+                                                                   "WORKLOG_2026-04-24.md",
+                                                                   "WORKLOG_2026-04-26.md",
+                                                                   ".android-home\\analytics.settings",
+                                                                   ".android-home\\debug.keystore",
+                                                                   ".android-home\\debug.keystore.lock",
+                                                                   ".android-sdk\\.knownPackages"
+                                                               ]
+                                         }
+                        },
+    "intent_context":  {
+                           "request":  "kiem tra mcp cho workflow",
+                           "intent":  {
+                                          "selected_task_type":  "mcp_governance_design",
+                                          "selected_data_class":  "internal"
+                                      },
+                           "evidence":  {
+                                            "candidates":  [
+                                                               {
+                                                                   "task_type":  "mcp_governance_design",
+                                                                   "data_class":  "internal",
+                                                                   "score":  2,
+                                                                   "matched_keywords":  [
+                                                                                            "mcp",
+                                                                                            "workflow"
+                                                                                        ]
+                                                               }
+                                                           ],
+                                            "sensitive_signals":  [
+
+                                                                  ]
+                                        }
+                       },
+    "resolved":  {
+                     "task_type":  "mcp_governance_design",
+                     "data_class":  "restricted",
+                     "profile":  "android-local-first-restricted"
+                 },
+    "mcp_execution_plan":  {
+                               "project":  {
+                                               "requested_path":  "F:\\codex_android_gsheet_full_pack",
+                                               "resolved_project_id":  "codex-android-gsheet-full-pack",
+                                               "profile_id":  "android-local-first-restricted",
+                                               "profile_source":  "override",
+                                               "security_level":  "high"
+                                           },
+                               "request":  {
+                                               "task_type":  "mcp_governance_design",
+                                               "operation":  "kiem tra mcp cho workflow",
+                                               "data_class":  "restricted"
+                                           },
+                               "mcp_plan":  {
+                                                "primary":  "shell_command",
+                                                "fallback":  "github",
+                                                "blocked":  [
+                                                                "browser_use",
+                                                                "cloudflare",
+                                                                "google_drive",
+                                                                "node_repl",
+                                                                "playwright"
+                                                            ]
+                                            },
+                               "controls":  [
+                                                "always_generate_execution_plan_before_tool_action",
+                                                "confirm_external_writes",
+                                                "define_confirmation_points_for_risky_actions",
+                                                "discover_project_context_before_rule_design",
+                                                "explain_reason_for_each_allowed_or_blocked_mcp",
+                                                "log_tool_selection",
+                                                "mask_sensitive_output",
+                                                "minimize_data_access",
+                                                "no_external_copy",
+                                                "no_external_data_transmission",
+                                                "prefer_local_validation_before_remote_write",
+                                                "prefer_read_before_write",
+                                                "require_change_scope",
+                                                "require_explicit_scope_for_write_operations",
+                                                "require_explicit_user_confirmation"
+                                            ],
+                               "mcp_details":  {
+
+                                               }
+                           },
+    "stability_controls":  [
+                               "capture_tool_errors_with_context",
+                               "fallback_on_primary_failure",
+                               "include_validation_steps_for_every_rule_change",
+                               "prefer_idempotent_operations",
+                               "propose_safe_defaults_before_custom_rules",
+                               "scan_existing_workflow_assets_first",
+                               "set_explicit_timeouts",
+                               "summarize_assumptions_before_write_actions"
+                           ],
+    "operational_rules":  [
+                              "Always generate execution plan before calling MCP tools.",
+                              "Use primary MCPs first; use fallback only when primary is unavailable or blocked.",
+                              "If primary and fallback are empty, ask for scope clarification and update decision-matrix/profile safely.",
+                              "For any write/destructive action: restate exact scope and request explicit confirmation right before execution.",
+                              "Do not transmit restricted/confidential data to external destinations unless explicitly approved and required."
+                          ],
+    "audit":  {
+                  "enabled":  true,
+                  "file_path":  "F:\\CODEX-AUTO\\AUTO-MCP\\workflow\\logs\\mcp-advisor-audit.jsonl"
+              }
+}

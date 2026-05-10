@@ -11,7 +11,10 @@ data class DmbtRepairUpdate(
     val maThietBi: String,
     val ngaySuaChua: String?,
     val ghiChu: String,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val ngayPhatHien: String? = null,
+    val hangMuc: String? = null,
+    val tinhTrangThietBi: String? = null
 )
 
 fun DeviceLog.toDmbtLogRow(): Map<String, String> = linkedMapOf(

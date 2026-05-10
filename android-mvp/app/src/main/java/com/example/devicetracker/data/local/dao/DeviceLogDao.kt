@@ -36,8 +36,26 @@ interface DeviceLogDao {
     @Query("SELECT * FROM device_logs WHERE recordId = :recordId LIMIT 1")
     suspend fun getById(recordId: String): DeviceLogEntity?
 
-    @Query("SELECT * FROM device_logs WHERE syncStatus != 'SYNCED' ORDER BY updatedAt ASC")
+    @Query("SELECT * FROM device_logs WHERE sourceSheetId = :sourceSheetId AND maThietBi = :deviceCode")
+    suspend fun getBySourceSheetAndDeviceCode(sourceSheetId: Int, deviceCode: String): List<DeviceLogEntity>
+
+    @Query("SELECT * FROM device_logs WHERE maThietBi = :deviceCode")
+    suspend fun getByDeviceCode(deviceCode: String): List<DeviceLogEntity>
+
+    @Query("SELECT * FROM device_logs WHERE syncStatus = 'PENDING' ORDER BY updatedAt ASC")
     suspend fun getPendingLogs(): List<DeviceLogEntity>
+
+    @Query("SELECT recordId FROM device_logs")
+    suspend fun getAllRecordIds(): List<String>
+
+    @Query("SELECT recordId FROM device_logs WHERE sourceSheetId = :sourceSheetId")
+    suspend fun getRecordIdsBySourceSheetId(sourceSheetId: Int): List<String>
+
+    @Query("SELECT recordId FROM device_logs WHERE sourceSheetId = :sourceSheetId AND syncStatus = 'SYNCED'")
+    suspend fun getSyncedRecordIdsBySourceSheetId(sourceSheetId: Int): List<String>
+
+    @Query("DELETE FROM device_logs WHERE recordId IN (:recordIds)")
+    suspend fun deleteByRecordIds(recordIds: List<String>): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entity: DeviceLogEntity)

@@ -15,6 +15,45 @@ if (-not (Test-Path -LiteralPath $androidRoot)) {
   throw "Missing android project folder: $androidRoot"
 }
 
+function Initialize-AndroidGradleEnvironment {
+  param([string]$ProjectPath)
+
+  $gradleHome = Join-Path $ProjectPath ".gradle-user-home"
+  $androidHome = Join-Path $ProjectPath ".android-home"
+  $javaHome = Join-Path $ProjectPath ".home"
+  $tmpHome = Join-Path $ProjectPath ".tmp"
+  $kotlinHome = Join-Path $ProjectPath ".kotlin"
+  $appDataHome = Join-Path $ProjectPath ".appdata"
+
+  foreach ($path in @($gradleHome, $androidHome, $javaHome, $tmpHome, $kotlinHome, $appDataHome)) {
+    New-Item -ItemType Directory -Force -Path $path | Out-Null
+  }
+
+  $env:GRADLE_USER_HOME = $gradleHome
+  $env:ANDROID_USER_HOME = $androidHome
+  $env:TEMP = $tmpHome
+  $env:TMP = $tmpHome
+  $env:KOTLIN_USER_HOME = $kotlinHome
+  $env:LOCALAPPDATA = $appDataHome
+  $env:APPDATA = $appDataHome
+
+  # Android Gradle Plugin 9 rejects setting both ANDROID_USER_HOME and the
+  # deprecated ANDROID_PREFS_ROOT, even when they point to the same folder.
+  Remove-Item Env:\ANDROID_PREFS_ROOT -ErrorAction SilentlyContinue
+
+  $gradleOpts = @(
+    "-Duser.home=$javaHome",
+    "-Djava.io.tmpdir=$tmpHome",
+    "-Dkotlin.daemon.client.alive.path=$tmpHome"
+  )
+  $existingGradleOpts = $env:GRADLE_OPTS
+  if (-not [string]::IsNullOrWhiteSpace($existingGradleOpts)) {
+    $env:GRADLE_OPTS = "$existingGradleOpts $($gradleOpts -join ' ')"
+  } else {
+    $env:GRADLE_OPTS = $gradleOpts -join " "
+  }
+}
+
 function Remove-WithRetry {
   param([string]$PathToDelete)
   if (-not (Test-Path -LiteralPath $PathToDelete)) { return }
@@ -103,6 +142,7 @@ function Invoke-GradleWithRetry {
   }
 }
 
+Initialize-AndroidGradleEnvironment -ProjectPath $androidRoot
 Invoke-LockCleanup -ProjectPath $androidRoot
 
 $buildId = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds().ToString()

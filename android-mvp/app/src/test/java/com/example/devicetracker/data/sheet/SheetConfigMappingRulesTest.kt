@@ -124,4 +124,113 @@ class SheetConfigMappingRulesTest {
             duplicates.getValue(1383308512)
         )
     }
+
+    @Test
+    fun parseDmbtSheetBindings_keeps_all_required_multisheet_gids() {
+        val bindings = SheetConfig.parseDmbtSheetBindings(
+            rawSheetIds = "849979183,1783863163,1224276666,989601207,1607125070,1383308512",
+            defaultCreateSheetId = 1383308512,
+            legacyPrimarySheetId = null,
+            legacyReadOnlySheetIds = ""
+        )
+
+        assertEquals(
+            listOf(849979183, 1783863163, 1224276666, 989601207, 1607125070, 1383308512),
+            bindings.map { it.sheetId }
+        )
+        assertTrue(bindings.all { it.mode == SheetSyncMode.TWO_WAY })
+        assertEquals(1383308512, bindings.single { it.isDefaultCreateTarget }.sheetId)
+    }
+
+    @Test
+    fun splitDmbtSheetBindings_yearlyDoesNotContainMonthlyGid() {
+        val bindings = SheetConfig.parseDmbtSheetBindings(
+            rawSheetIds = "849979183,1783863163,1224276666,989601207,1607125070,1383308512",
+            defaultCreateSheetId = 1607125070,
+            legacyPrimarySheetId = null,
+            legacyReadOnlySheetIds = ""
+        )
+
+        val buckets = SheetConfig.splitDmbtSheetBindings(
+            bindings = bindings,
+            monthlySheetIds = setOf(1383308512)
+        )
+
+        assertFalse(buckets.yearly.any { it.sheetId == 1383308512 })
+        assertEquals(listOf(849979183, 1783863163, 1224276666, 989601207, 1607125070), buckets.yearly.map { it.sheetId })
+    }
+
+    @Test
+    fun splitDmbtSheetBindings_monthlyContainsOnlyMonthlyGid() {
+        val bindings = SheetConfig.parseDmbtSheetBindings(
+            rawSheetIds = "849979183,1783863163,1224276666,989601207,1607125070,1383308512",
+            defaultCreateSheetId = 1607125070,
+            legacyPrimarySheetId = null,
+            legacyReadOnlySheetIds = ""
+        )
+
+        val buckets = SheetConfig.splitDmbtSheetBindings(
+            bindings = bindings,
+            monthlySheetIds = setOf(1383308512)
+        )
+
+        assertEquals(listOf(1383308512), buckets.monthly.map { it.sheetId })
+    }
+
+    @Test
+    fun resolveDmbtSheetIdForDiscoveryDate_mapsConfiguredYearlySheetsByYear() {
+        val yearlyBindings = listOf(
+            849979183,
+            1783863163,
+            1224276666,
+            989601207,
+            1607125070
+        ).map { sheetId ->
+            SheetConfig.DmbtSheetBinding(
+                sheetId = sheetId,
+                mode = SheetSyncMode.TWO_WAY,
+                isDefaultCreateTarget = false
+            )
+        }
+
+        assertEquals(
+            989601207,
+            SheetConfig.resolveDmbtSheetIdForDiscoveryDate(
+                discoveryDate = "09/05/2025",
+                yearlyBindings = yearlyBindings
+            )
+        )
+        assertEquals(
+            1607125070,
+            SheetConfig.resolveDmbtSheetIdForDiscoveryDate(
+                discoveryDate = "22/08/2026",
+                yearlyBindings = yearlyBindings
+            )
+        )
+    }
+
+    @Test
+    fun resolveDmbtSheetIdForDiscoveryDate_returnsNullForUnconfiguredYear() {
+        val yearlyBindings = listOf(
+            849979183,
+            1783863163,
+            1224276666,
+            989601207,
+            1607125070
+        ).map { sheetId ->
+            SheetConfig.DmbtSheetBinding(
+                sheetId = sheetId,
+                mode = SheetSyncMode.TWO_WAY,
+                isDefaultCreateTarget = false
+            )
+        }
+
+        assertEquals(
+            null,
+            SheetConfig.resolveDmbtSheetIdForDiscoveryDate(
+                discoveryDate = "01/01/2027",
+                yearlyBindings = yearlyBindings
+            )
+        )
+    }
 }

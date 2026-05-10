@@ -4,6 +4,8 @@ import android.os.SystemClock
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.devicetracker.data.remote.SheetsRemoteDataSource
+import com.example.devicetracker.data.repository.DeviceLogRepositoryImpl
 import com.example.devicetracker.domain.model.SyncOverview
 import com.example.devicetracker.domain.usecase.GetSyncOverviewUseCase
 import com.example.devicetracker.domain.usecase.RefreshHgtChecksFromRemoteUseCase
@@ -26,7 +28,8 @@ class SyncStatusViewModel @Inject constructor(
     private val syncPendingLogsUseCase: SyncPendingLogsUseCase,
     private val refreshLogsFromRemoteUseCase: RefreshLogsFromRemoteUseCase,
     private val syncPendingHgtChecksUseCase: SyncPendingHgtChecksUseCase,
-    private val refreshHgtChecksFromRemoteUseCase: RefreshHgtChecksFromRemoteUseCase
+    private val refreshHgtChecksFromRemoteUseCase: RefreshHgtChecksFromRemoteUseCase,
+    private val deviceLogRepositoryImpl: DeviceLogRepositoryImpl
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SyncStatusUiState())
@@ -148,6 +151,34 @@ class SyncStatusViewModel @Inject constructor(
         }
     }
 
+    fun ignoreAmbiguousPending(itemId: String) {
+        if (!itemId.startsWith("log:")) return
+        val recordId = itemId.removePrefix("log:").trim()
+        if (recordId.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(ignoringItemId = itemId, errorMessage = null, infoMessage = null) }
+            val ignored = runCatching { deviceLogRepositoryImpl.ignoreAmbiguousPendingRecord(recordId) }
+                .getOrDefault(false)
+            if (ignored) {
+                _uiState.update {
+                    it.copy(
+                        ignoringItemId = null,
+                        infoMessage = "Đã bỏ qua an toàn mục pending ambiguous: $recordId"
+                    )
+                }
+                refreshOverview()
+            } else {
+                _uiState.update {
+                    it.copy(
+                        ignoringItemId = null,
+                        errorMessage = "Không thể bỏ qua mục này vì không khớp điều kiện ambiguous an toàn."
+                    )
+                }
+            }
+        }
+    }
+
     private fun buildSuccessMessage(
         before: SyncOverview?,
         after: SyncOverview?,
@@ -157,6 +188,12 @@ class SyncStatusViewModel @Inject constructor(
         val modeLabel = if (mode == SyncExecutionMode.QUICK) "nhanh" else "đầy đủ"
         val seconds = (elapsedMs / 1000L).coerceAtLeast(0L)
         if (after == null) return "Đồng bộ thành công."
+        if (before != null && didTotalsChange(before, after)) {
+            return "Đồng bộ $modeLabel xong trong ${seconds}s: " +
+                "DMBT ${before.totalDmbtLogs}→${after.totalDmbtLogs}, " +
+                "HGT ${before.totalHgtChecks}→${after.totalHgtChecks}, " +
+                "tổng ${before.totalLogs}→${after.totalLogs}."
+        }
         if ((before?.queueSize ?: 0) == 0 && (before?.pendingLogs ?: 0) == 0) {
             return "Không có thiết bị chờ đồng bộ. Dữ liệu local đã sạch."
         }
@@ -164,6 +201,12 @@ class SyncStatusViewModel @Inject constructor(
             return "Đồng bộ $modeLabel thành công trong ${seconds}s. Còn ${after.pendingLogs} bản ghi chờ."
         }
         return "Đồng bộ $modeLabel xong trong ${seconds}s: hàng đợi ${before.queueSize}→${after.queueSize}, pending ${before.pendingLogs}→${after.pendingLogs}."
+    }
+
+    private fun didTotalsChange(before: SyncOverview, after: SyncOverview): Boolean {
+        return before.totalDmbtLogs != after.totalDmbtLogs ||
+            before.totalHgtChecks != after.totalHgtChecks ||
+            before.totalLogs != after.totalLogs
     }
 
     private fun SyncStatusUiState.copyFromOverview(
@@ -184,10 +227,27 @@ class SyncStatusViewModel @Inject constructor(
             queueSize = overview.queueSize,
             queueErrorCount = overview.queueErrorCount,
             pendingItems = overview.pendingItems,
+            sheetIssueItems = latestSheetIssueItems(),
             latestQueueError = overview.latestQueueError?.let(::toFriendlySyncMessage),
             isLoading = isLoading,
             isSyncing = isSyncing
         )
+    }
+
+    private fun latestSheetIssueItems(): List<SyncDataIssueUiItem> {
+        return deviceLogRepositoryImpl.getLatestDmbtSheetIssueReports().map { report ->
+            SyncDataIssueUiItem(
+                typeLabel = when (report.type) {
+                    SheetsRemoteDataSource.DmbtSheetIssueType.DUPLICATE_IDENTITY -> "Trùng dữ liệu DMBT"
+                    SheetsRemoteDataSource.DmbtSheetIssueType.INVALID_DISCOVERY_DATE -> "Thiếu/sai ngày phát hiện"
+                },
+                sheetTitle = report.sheetTitle,
+                deviceCode = report.deviceCode,
+                discoveryDate = report.discoveryDate,
+                description = report.description,
+                rowNumbers = report.rowNumbers.joinToString("/")
+            )
+        }
     }
 
     private suspend fun runSyncStepWithTimeout(

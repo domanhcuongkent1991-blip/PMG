@@ -1,5 +1,7 @@
 ﻿package com.example.devicetracker.ui.edit
 
+import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,10 +10,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +28,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -38,9 +45,18 @@ fun EditLogScreen(
     viewModel: EditViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var backDispatched by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = uiState.isSaving) {
+        Log.i(TAG, "WS_FIX_EDIT_BACK_BLOCKED: ignoring system back while save is in progress")
+    }
 
     LaunchedEffect(uiState.saveSuccess) {
-        if (uiState.saveSuccess) onBack()
+        if (uiState.saveSuccess && !backDispatched) {
+            backDispatched = true
+            Log.i(TAG, "WS_FIX_EDIT_SAVE_SUCCESS_NAV_BACK")
+            onBack()
+        }
     }
 
     Scaffold(
@@ -48,7 +64,19 @@ fun EditLogScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.edit_title)) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        enabled = !uiState.isSaving,
+                        onClick = {
+                            if (uiState.isSaving) {
+                                Log.i(TAG, "WS_FIX_EDIT_TOPBAR_BACK_BLOCKED: save in progress")
+                                return@IconButton
+                            }
+                            if (backDispatched) return@IconButton
+                            backDispatched = true
+                            Log.i(TAG, "WS_FIX_EDIT_TOPBAR_BACK")
+                            onBack()
+                        }
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.cd_back)
@@ -78,8 +106,22 @@ fun EditLogScreen(
                         )
                     }
                 }
-                Button(onClick = viewModel::save, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.edit_save_button))
+                Button(
+                    onClick = viewModel::save,
+                    enabled = !uiState.isSaving,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (uiState.isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(18.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.edit_save_button)
+                    )
                 }
             }
         }
@@ -182,3 +224,5 @@ fun EditLogScreen(
         }
     }
 }
+
+private const val TAG = "EditLogScreen"

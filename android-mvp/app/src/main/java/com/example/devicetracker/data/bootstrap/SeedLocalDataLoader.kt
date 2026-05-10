@@ -22,6 +22,9 @@ class SeedLocalDataLoader @Inject constructor(
     private val hgtCheckDao: HgtCheckDao
 ) {
     suspend fun seedIfDatabaseEmpty(): Int = withContext(Dispatchers.IO) {
+        if (!isBundledSnapshotSeedEnabled()) {
+            return@withContext 0
+        }
         seedDeviceLogs() + seedHgtChecks()
     }
 
@@ -217,5 +220,6 @@ class SeedLocalDataLoader @Inject constructor(
     companion object {
         private const val SEED_ASSET_FILE = "seed_device_logs.json"
         private const val HGT_SEED_ASSET_FILE = "seed_hgt_checks.json"
+        internal fun isBundledSnapshotSeedEnabled(): Boolean = false
     }
 }

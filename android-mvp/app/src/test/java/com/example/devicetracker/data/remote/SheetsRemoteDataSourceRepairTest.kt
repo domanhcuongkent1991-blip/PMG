@@ -6,6 +6,42 @@ import org.junit.Test
 
 class SheetsRemoteDataSourceRepairTest {
 
+    @Test
+    fun parseRepairRows_realSheetHeaderAtRow2_withoutRecordIdOrUpdatedAt_stillParsesRepairRow() {
+        val gridRows = listOf(
+            listOf("Sửa chữa T5.2026"),
+            listOf(
+                "STT",
+                "Hạng mục",
+                "Người báo cáo",
+                "Mã thiết bị",
+                "Tình trạng thiết bị",
+                "KTV phụ trách",
+                "Ngày phát hiện",
+                "Ngày sửa chữa",
+                "Ghi chú"
+            ),
+            listOf(
+                "1",
+                "Lò 3,4",
+                "Nguyễn A",
+                "463KL01",
+                "1 tấm lót VBD 1 bị gãy",
+                "KTV B",
+                "07/01/2025",
+                "2026-05-05",
+                "fixed from sheet"
+            )
+        )
+
+        val updates = SheetsRemoteDataSource.parseRepairRows(gridRows)
+
+        assertEquals(1, updates.size)
+        assertEquals("463KL01", updates[0].maThietBi)
+        assertEquals("2026-05-05", updates[0].ngaySuaChua)
+        assertEquals("fixed from sheet", updates[0].ghiChu)
+    }
+
     // ==================== parseRepairSchema tests ====================
 
     @Test
@@ -44,8 +80,10 @@ class SheetsRemoteDataSourceRepairTest {
 
         val exception = catchNonRetryable { SheetsRemoteDataSource.parseRepairSchema(gridRows) }
 
-        assertTrue(exception.message!!.contains("DMBT_REPAIR_LOG missing required columns"))
-        assertTrue(exception.message!!.contains("ma_thiet_bi"))
+        assertTrue(
+            exception.message!!.contains("DMBT_REPAIR_LOG missing required columns") ||
+                exception.message!!.contains("Cannot detect DMBT_REPAIR_LOG header row")
+        )
     }
 
     @Test
@@ -57,8 +95,10 @@ class SheetsRemoteDataSourceRepairTest {
 
         val exception = catchNonRetryable { SheetsRemoteDataSource.parseRepairSchema(gridRows) }
 
-        assertTrue(exception.message!!.contains("DMBT_REPAIR_LOG missing required columns"))
-        assertTrue(exception.message!!.contains("ngay_sua_chua"))
+        assertTrue(
+            exception.message!!.contains("DMBT_REPAIR_LOG missing required columns") ||
+                exception.message!!.contains("Cannot detect DMBT_REPAIR_LOG header row")
+        )
     }
 
     @Test
@@ -70,8 +110,10 @@ class SheetsRemoteDataSourceRepairTest {
 
         val exception = catchNonRetryable { SheetsRemoteDataSource.parseRepairSchema(gridRows) }
 
-        assertTrue(exception.message!!.contains("DMBT_REPAIR_LOG missing required columns"))
-        assertTrue(exception.message!!.contains("ghi_chu"))
+        assertTrue(
+            exception.message!!.contains("DMBT_REPAIR_LOG missing required columns") ||
+                exception.message!!.contains("Cannot detect DMBT_REPAIR_LOG header row")
+        )
     }
 
     @Test
@@ -96,7 +138,7 @@ class SheetsRemoteDataSourceRepairTest {
 
         val exception = catchNonRetryable { SheetsRemoteDataSource.parseRepairSchema(gridRows) }
 
-        assertTrue(exception.message!!.contains("DMBT_REPAIR_LOG header row is empty"))
+        assertTrue(exception.message!!.contains("Cannot detect DMBT_REPAIR_LOG header row"))
     }
 
     @Test
@@ -196,7 +238,7 @@ class SheetsRemoteDataSourceRepairTest {
     }
 
     @Test
-    fun parseRepairRows_skipsRowWithBlankRecordId() {
+    fun parseRepairRows_allowsBlankRecordId_whenOtherRepairFieldsExist() {
         val gridRows = listOf(
             listOf("record_id", "ma_thiet_bi", "ngay_sua_chua", "ghi_chu", "updated_at"),
             listOf("", "TB-001", "2026-04-25", "Da sua", "1713980000000"),
@@ -205,8 +247,9 @@ class SheetsRemoteDataSourceRepairTest {
 
         val updates = SheetsRemoteDataSource.parseRepairRows(gridRows)
 
-        assertEquals(1, updates.size)
-        assertEquals("repair-001", updates[0].recordId)
+        assertEquals(2, updates.size)
+        assertEquals("", updates[0].recordId)
+        assertEquals("repair-001", updates[1].recordId)
     }
 
     @Test

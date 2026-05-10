@@ -1,0 +1,51 @@
+﻿{
+    "generated_at":  "2026-05-07T21:20:06",
+    "overall_status":  "PASS",
+    "total_steps":  6,
+    "passed_steps":  6,
+    "failed_steps":  0,
+    "steps":  [
+                  {
+                      "step":  "plan_validate",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  0.56,
+                      "output_tail":  "PASS: PLAN-WORKFLOW-CODEX-PLAN-ONLY V3.4 is valid."
+                  },
+                  {
+                      "step":  "plan_conversation_golden",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  0.07,
+                      "output_tail":  "PASS: conversation golden fixtures validated (4 fixtures)."
+                  },
+                  {
+                      "step":  "skill_store_validate",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  1.25,
+                      "output_tail":  "PASS\nSkills indexed: 61\nSkill folders: 61\nValidation levels: structural + strict frontmatter + pack schema + project/store gate consistency + routing + release + manifest\nNo missing skill folders, index entries, references, required files, pack schema issues, handoff drift, stale release reports, version drift, or control-file consistency defects found."
+                  },
+                  {
+                      "step":  "skill_store_routing_tests",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  0.27,
+                      "output_tail":  "- 03-one-click-windows-local-app: 12 expected skills, 4 expected risks, 4 expected outputs, 2 forbidden checks, 7 expected groups, 23 simulated selections\n- 04-external-mcp-tool: 9 expected skills, 4 expected risks, 3 expected outputs, 3 forbidden checks, 6 expected groups, 13 simulated selections\n- 05-secret-leak-response: 9 expected skills, 4 expected risks, 3 expected outputs, 2 forbidden checks, 4 expected groups, 22 simulated selections\n- 06-safe-tech-defaults-nontech: 10 expected skills, 4 expected risks, 3 expected outputs, 2 forbidden checks, 8 expected groups, 23 simulated selections\n- 07-release-readiness-handoff: 10 expected skills, 4 expected risks, 4 expected outputs, 2 forbidden checks, 8 expected groups, 20 simulated selections\n- 08-factory-web-windows-upload-secret-nontech: 30 expected skills, 7 expected risks, 8 expected outputs, 2 forbidden checks, 12 expected groups, 40 simulated selections\n- 09-mobile-backend-proxy-release: 24 expected skills, 4 expected risks, 6 expected outputs, 2 forbidden checks, 10 expected groups, 29 simulated selections\n- 10-existing-project-logs-secrets-mcp-handoff: 20 expected skills, 4 expected risks, 8 expected outputs, 2 forbidden checks, 7 expected groups, 27 simulated selections"
+                  },
+                  {
+                      "step":  "auto_mcp_validate",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  3.61,
+                      "output_tail":  "MCP workflow validation passed."
+                  },
+                  {
+                      "step":  "auto_mcp_regression",
+                      "status":  "PASS",
+                      "exit_code":  0,
+                      "duration_seconds":  3.42,
+                      "output_tail":  "                        \"id\":  \"secret-escalation\",\n                        \"status\":  \"passed\",\n                        \"errors\":  [\n\n                                   ]\n                    }\n                ]\n}"
+                  }
+              ]
+}

@@ -1,6 +1,7 @@
 package com.example.devicetracker.work
 
 import android.content.Context
+import android.util.Log
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
@@ -19,6 +20,10 @@ import javax.inject.Singleton
 class SyncScheduler @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
+    fun logStartupPeriodicSyncSkipped() {
+        Log.i(TAG, "Skipping startup periodic sync scheduling; sync remains manual via Sync Status.")
+    }
+
     fun scheduleImmediateSync(fullSync: Boolean = true) {
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -61,5 +66,9 @@ class SyncScheduler @Inject constructor(
             ExistingPeriodicWorkPolicy.UPDATE,
             request
         )
+    }
+
+    companion object {
+        private const val TAG = "SyncScheduler"
     }
 }

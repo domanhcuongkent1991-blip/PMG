@@ -31,6 +31,12 @@ Ban la AI agent phai tu van hanh repo nay theo uu tien:
    - Nguyen nhan kha nghi
    - Lenh fix de user copy/paste
 6. Truoc moi commit, phai chay `node scripts/prevent-secrets.js`.
+7. Bat buoc ghi worklog/handoff khi co quyet dinh quan trong, fix P0/P1, UAT that, cai APK len dien thoai, hoac khi ket thuc mot ngay lam viec:
+   - Tao/cap nhat `WORKLOG_YYYY-MM-DD.md` o root repo.
+   - Ghi ro muc tieu, viec da lam, file/report da tao, lenh verify da chay, ket qua, loi moi truong, rui ro con lai, va buoc tiep theo.
+   - Neu co giao viec cho Agent khac, ghi Task ID, muc tieu, pham vi duoc sua/cam sua, va dieu kien hoan thanh.
+   - Khong ghi secret/token vao worklog.
+   - Khong danh dau PASS neu chua co bang chung test/build/UAT tuong ung.
 
 ## Quy tac bao mat
 

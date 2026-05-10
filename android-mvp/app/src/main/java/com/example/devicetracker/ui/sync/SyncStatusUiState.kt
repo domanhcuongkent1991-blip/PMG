@@ -18,7 +18,18 @@ data class SyncStatusUiState(
     val queueSize: Int = 0,
     val queueErrorCount: Int = 0,
     val pendingItems: List<PendingSyncItem> = emptyList(),
+    val sheetIssueItems: List<SyncDataIssueUiItem> = emptyList(),
+    val ignoringItemId: String? = null,
     val latestQueueError: String? = null,
     val infoMessage: String? = null,
     val errorMessage: String? = null
+)
+
+data class SyncDataIssueUiItem(
+    val typeLabel: String,
+    val sheetTitle: String,
+    val deviceCode: String,
+    val discoveryDate: String,
+    val description: String,
+    val rowNumbers: String
 )

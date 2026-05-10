@@ -27,8 +27,25 @@ class SheetConfig @Inject constructor() {
             legacyPrimarySheetId = sheetId(SheetRole.DMBT_LOG),
             legacyReadOnlySheetIds = BuildConfig.SHEETS_DMBT_READONLY_SHEET_IDS
         )
+    val yearlyDmbtSheetBindings: List<DmbtSheetBinding>
+        get() = splitDmbtSheetBindings(
+            bindings = dmbtSheetBindings,
+            monthlySheetIds = MONTHLY_DMBT_SHEET_IDS
+        ).yearly
+    val monthlyDmbtSheetBindings: List<DmbtSheetBinding>
+        get() = splitDmbtSheetBindings(
+            bindings = dmbtSheetBindings,
+            monthlySheetIds = MONTHLY_DMBT_SHEET_IDS
+        ).monthly
     val dmbtDefaultCreateSheetId: Int?
         get() = dmbtSheetBindings.firstOrNull { it.isDefaultCreateTarget }?.sheetId
+
+    fun dmbtSheetIdForDiscoveryDate(discoveryDate: String): Int? {
+        return resolveDmbtSheetIdForDiscoveryDate(
+            discoveryDate = discoveryDate,
+            yearlyBindings = yearlyDmbtSheetBindings
+        )
+    }
 
     val canRefreshAccessToken: Boolean
         get() = authMode == SheetsAuthMode.REFRESH_TOKEN
@@ -96,6 +113,11 @@ class SheetConfig @Inject constructor() {
         val isDefaultCreateTarget: Boolean
     )
 
+    data class DmbtSheetBindingBuckets(
+        val yearly: List<DmbtSheetBinding>,
+        val monthly: List<DmbtSheetBinding>
+    )
+
     private fun parseSheetId(rawValue: String): Int? {
         return rawValue
             .trim()
@@ -104,6 +126,24 @@ class SheetConfig @Inject constructor() {
     }
 
     companion object {
+        private const val FIRST_YEARLY_DMBT_YEAR = 2022
+        internal val MONTHLY_DMBT_SHEET_IDS: Set<Int> = setOf(1383308512)
+        internal fun isMonthlyDmbtSheetId(sheetId: Int?): Boolean =
+            sheetId != null && MONTHLY_DMBT_SHEET_IDS.contains(sheetId)
+
+        internal fun resolveDmbtSheetIdForDiscoveryDate(
+            discoveryDate: String,
+            yearlyBindings: List<DmbtSheetBinding>
+        ): Int? {
+            val year = Regex("(\\d{4})").find(discoveryDate.trim())
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toIntOrNull()
+                ?: return null
+            val index = year - FIRST_YEARLY_DMBT_YEAR
+            return yearlyBindings.getOrNull(index)?.sheetId
+        }
+
         internal fun findMissingSheetIdRoles(
             requiredRoles: Set<SheetRole>,
             roleSheetIds: Map<SheetRole, Int?>
@@ -166,6 +206,18 @@ class SheetConfig @Inject constructor() {
                     isDefaultCreateTarget = sheetId == resolvedDefaultSheetId
                 )
             }
+        }
+
+        internal fun splitDmbtSheetBindings(
+            bindings: List<DmbtSheetBinding>,
+            monthlySheetIds: Set<Int>
+        ): DmbtSheetBindingBuckets {
+            val monthly = bindings.filter { monthlySheetIds.contains(it.sheetId) }
+            val yearly = bindings.filterNot { monthlySheetIds.contains(it.sheetId) }
+            return DmbtSheetBindingBuckets(
+                yearly = yearly,
+                monthly = monthly
+            )
         }
 
         private fun parseSheetIdList(rawValue: String): List<Int> {

@@ -1,0 +1,12 @@
+﻿{
+    "generated_at_utc":  "2026-05-07T14:29:53.5820941Z",
+    "project_root":  "F:\\codex_android_gsheet_full_pack",
+    "request_text":  "kiem tra mcp cho workflow",
+    "report_sha256":  "cf6fde3e36d1fb6079cfc3b118991ef858d261a900b4b639b646fb32e218e922",
+    "execution_plan_sha256":  "41b09afa423e927fe4072c77d18c634a49adaa60fe78e79adc70b1c84eaf17c1",
+    "policy_bundle_version":  "2.0.0",
+    "policy_bundle_hash":  "abc46c1a1c37db13c17ea4072a177ae0759f457dce44c27b55eeedacc81ee1f1",
+    "task_type":  "mcp_governance_design",
+    "data_class":  "restricted",
+    "profile":  "android-local-first-restricted"
+}

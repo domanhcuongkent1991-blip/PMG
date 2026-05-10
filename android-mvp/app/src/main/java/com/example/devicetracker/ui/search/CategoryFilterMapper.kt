@@ -29,8 +29,8 @@ data class MaintenanceCategoryPresentation(
 )
 
 const val CATEGORY_YEARLY_ALL = "yearly-all"
-const val CATEGORY_MONTHLY_DMBT_T4_2026 = "monthly-dmbt-t4-2026"
-const val CATEGORY_MONTHLY_REPAIR_T4_2026 = "monthly-repair-t4-2026"
+const val CATEGORY_MONTHLY_DMBT = "monthly-dmbt"
+const val CATEGORY_MONTHLY_REPAIR = "monthly-repair"
 
 fun buildTimelineFilterPresentation(
     items: List<DeviceLog>,
@@ -91,13 +91,13 @@ fun buildMaintenanceCategoryPresentation(
         }
         add(
             MaintenanceCategoryOption(
-                id = CATEGORY_MONTHLY_DMBT_T4_2026,
+                id = CATEGORY_MONTHLY_DMBT,
                 type = MaintenanceCategoryType.MONTHLY_DMBT
             )
         )
         add(
             MaintenanceCategoryOption(
-                id = CATEGORY_MONTHLY_REPAIR_T4_2026,
+                id = CATEGORY_MONTHLY_REPAIR,
                 type = MaintenanceCategoryType.MONTHLY_REPAIR
             )
         )
@@ -173,10 +173,10 @@ private fun matchesCategory(log: DeviceLog, categoryId: String): Boolean {
     if (categoryId == CATEGORY_YEARLY_ALL) {
         return sourceCategory.bucket == SourceBucket.YEARLY_DMBT
     }
-    if (categoryId == CATEGORY_MONTHLY_DMBT_T4_2026) {
+    if (categoryId == CATEGORY_MONTHLY_DMBT) {
         return sourceCategory.bucket == SourceBucket.MONTHLY_DMBT
     }
-    if (categoryId == CATEGORY_MONTHLY_REPAIR_T4_2026) {
+    if (categoryId == CATEGORY_MONTHLY_REPAIR) {
         return sourceCategory.bucket == SourceBucket.MONTHLY_REPAIR
     }
 
@@ -187,15 +187,31 @@ private fun matchesCategory(log: DeviceLog, categoryId: String): Boolean {
 }
 
 private fun classifySource(log: DeviceLog): SourceCategory {
-    val recordId = log.recordId.trim().lowercase()
-    val categoryText = log.hangMuc.trim().lowercase()
-
-    if (recordId.startsWith("seed-beta-sua-chua-t") || categoryText.contains("sửa chữa t")) {
+    val sourceSheetId = log.sourceSheetId
+    if (sourceSheetId == MONTHLY_REPAIR_SHEET_ID) {
         return SourceCategory(SourceBucket.MONTHLY_REPAIR)
     }
 
-    if (recordId.startsWith("seed-beta-dmbt-t") || categoryText.contains("dmbt t")) {
+    if (sourceSheetId != null && MONTHLY_DMBT_SHEET_IDS.contains(sourceSheetId)) {
         return SourceCategory(SourceBucket.MONTHLY_DMBT)
+    }
+
+    if (sourceSheetId != null) {
+        val sourceYear = YEARLY_DMBT_SHEET_ID_TO_YEAR[sourceSheetId]
+        return SourceCategory(SourceBucket.YEARLY_DMBT, sourceYear ?: extractTimelineYear(log))
+    }
+
+    val recordId = log.recordId.trim().lowercase()
+    val namespacedSheetId = extractNamespacedDmbtSheetId(recordId)
+    if (namespacedSheetId != null) {
+        if (namespacedSheetId == MONTHLY_REPAIR_SHEET_ID) {
+            return SourceCategory(SourceBucket.MONTHLY_REPAIR)
+        }
+        if (MONTHLY_DMBT_SHEET_IDS.contains(namespacedSheetId)) {
+            return SourceCategory(SourceBucket.MONTHLY_DMBT)
+        }
+        val sourceYear = YEARLY_DMBT_SHEET_ID_TO_YEAR[namespacedSheetId]
+        return SourceCategory(SourceBucket.YEARLY_DMBT, sourceYear ?: extractTimelineYear(log))
     }
 
     val yearlySeedYear = Regex("""^seed-beta-dmbt-(20\d{2})-r\d+""")
@@ -207,22 +223,13 @@ private fun classifySource(log: DeviceLog): SourceCategory {
         return SourceCategory(SourceBucket.YEARLY_DMBT, yearlySeedYear)
     }
 
-    val categoryYear = Regex("""dmbt\s*(20\d{2})""")
-        .find(categoryText)
-        ?.groupValues
-        ?.getOrNull(1)
-        ?.toIntOrNull()
-    if (categoryYear != null) {
-        return SourceCategory(SourceBucket.YEARLY_DMBT, categoryYear)
-    }
-
     val fallbackYear = extractTimelineYear(log)
     if (fallbackYear != null) {
         return SourceCategory(SourceBucket.YEARLY_DMBT, fallbackYear)
     }
 
-    // App-created abnormal records default to the current monthly DMBT bucket.
-    return SourceCategory(SourceBucket.MONTHLY_DMBT)
+    // Safe default for unknown provenance: keep yearly bucket, avoid monthly mislabeling.
+    return SourceCategory(SourceBucket.YEARLY_DMBT)
 }
 
 private fun extractTimelineYearFromSeedRecordId(recordId: String): Int? {
@@ -244,3 +251,21 @@ private fun defaultTimelineYears(): List<Int> {
     if (upperBound < baseline) return listOf(baseline)
     return (baseline..upperBound).toList()
 }
+
+private fun extractNamespacedDmbtSheetId(recordIdLowercase: String): Int? {
+    return Regex("""^readonly-dmbt-(\d+)-""")
+        .find(recordIdLowercase)
+        ?.groupValues
+        ?.getOrNull(1)
+        ?.toIntOrNull()
+}
+
+private val MONTHLY_DMBT_SHEET_IDS: Set<Int> = setOf(1383308512)
+private const val MONTHLY_REPAIR_SHEET_ID: Int = 157327514
+private val YEARLY_DMBT_SHEET_ID_TO_YEAR: Map<Int, Int> = mapOf(
+    849979183 to 2022,
+    1783863163 to 2023,
+    1224276666 to 2024,
+    989601207 to 2025,
+    1607125070 to 2026
+)

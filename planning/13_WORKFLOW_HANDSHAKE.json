@@ -1,0 +1,23 @@
+﻿{
+  "project_type": "android_google_sheets_sync_app",
+  "primary_module": "android-mvp",
+  "supporting_modules": [
+    "scripts",
+    "planning",
+    ".planning",
+    ".workflow-gate",
+    "docs"
+  ],
+  "security_level": "restricted",
+  "release_boundary": "No deploy, APK install, Google Sheet write, or production approval without explicit task approval and matching verification evidence.",
+  "sensitive_data_class": "Google Sheets data, OAuth tokens, spreadsheet identifiers, local device records, maintenance logs",
+  "high_risk_actions": [
+    "Editing sync logic",
+    "Writing to real Google Sheets",
+    "Changing OAuth or token handling",
+    "Installing APK on a real device",
+    "Deleting local database or seed data",
+    "Changing workflow approval state manually"
+  ],
+  "blocking_open_questions": []
+}

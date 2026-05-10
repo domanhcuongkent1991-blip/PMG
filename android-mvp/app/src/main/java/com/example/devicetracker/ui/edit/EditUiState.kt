@@ -10,5 +10,6 @@ data class EditUiState(
     val ngaySuaChua: String = "",
     val ghiChu: String = "",
     val errorMessage: String? = null,
+    val isSaving: Boolean = false,
     val saveSuccess: Boolean = false
 )

@@ -1,9 +1,9 @@
 package com.example.devicetracker.ui.search
 
 import com.example.devicetracker.domain.model.DeviceLog
-import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CategoryFilterMapperTest {
@@ -118,9 +118,9 @@ class CategoryFilterMapperTest {
     fun `buildMaintenanceCategoryPresentation defaults to yearly DMBT only`() {
         val presentation = buildMaintenanceCategoryPresentation(
             items = listOf(
-                sampleLog(recordId = "seed-beta-dmbt-2026-r4", ngayPhatHien = "13/04/2026"),
-                sampleLog(recordId = "seed-beta-dmbt-t4-2026-r4", ngayPhatHien = "13/04/2026"),
-                sampleLog(recordId = "seed-beta-sua-chua-t4-2026-r4", ngayPhatHien = "13/04/2026")
+                sampleLog(recordId = "seed-beta-dmbt-2026-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 1607125070),
+                sampleLog(recordId = "seed-beta-dmbt-month-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 1383308512),
+                sampleLog(recordId = "seed-beta-repair-month-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 157327514)
             ),
             selectedCategoryId = CATEGORY_YEARLY_ALL
         )
@@ -133,49 +133,67 @@ class CategoryFilterMapperTest {
     fun `buildMaintenanceCategoryPresentation filters monthly DMBT records`() {
         val presentation = buildMaintenanceCategoryPresentation(
             items = listOf(
-                sampleLog(recordId = "seed-beta-dmbt-2026-r4", ngayPhatHien = "13/04/2026"),
-                sampleLog(recordId = "seed-beta-dmbt-t4-2026-r4", ngayPhatHien = "13/04/2026")
+                sampleLog(recordId = "seed-beta-dmbt-2026-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 1607125070),
+                sampleLog(recordId = "seed-beta-dmbt-month-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 1383308512)
             ),
-            selectedCategoryId = CATEGORY_MONTHLY_DMBT_T4_2026
+            selectedCategoryId = CATEGORY_MONTHLY_DMBT
         )
 
-        assertEquals(CATEGORY_MONTHLY_DMBT_T4_2026, presentation.selectedCategoryId)
-        assertEquals(listOf("seed-beta-dmbt-t4-2026-r4"), presentation.visibleItems.map { it.recordId })
+        assertEquals(CATEGORY_MONTHLY_DMBT, presentation.selectedCategoryId)
+        assertEquals(listOf("seed-beta-dmbt-month-r4"), presentation.visibleItems.map { it.recordId })
     }
 
     @Test
     fun `buildMaintenanceCategoryPresentation filters monthly repair records`() {
         val presentation = buildMaintenanceCategoryPresentation(
             items = listOf(
-                sampleLog(recordId = "seed-beta-dmbt-t4-2026-r4", ngayPhatHien = "13/04/2026"),
-                sampleLog(recordId = "seed-beta-sua-chua-t4-2026-r4", ngayPhatHien = "13/04/2026")
+                sampleLog(recordId = "seed-beta-dmbt-month-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 1383308512),
+                sampleLog(recordId = "seed-beta-repair-month-r4", ngayPhatHien = "13/04/2026", sourceSheetId = 157327514)
             ),
-            selectedCategoryId = CATEGORY_MONTHLY_REPAIR_T4_2026
+            selectedCategoryId = CATEGORY_MONTHLY_REPAIR
         )
 
-        assertEquals(CATEGORY_MONTHLY_REPAIR_T4_2026, presentation.selectedCategoryId)
-        assertEquals(listOf("seed-beta-sua-chua-t4-2026-r4"), presentation.visibleItems.map { it.recordId })
+        assertEquals(CATEGORY_MONTHLY_REPAIR, presentation.selectedCategoryId)
+        assertEquals(listOf("seed-beta-repair-month-r4"), presentation.visibleItems.map { it.recordId })
     }
 
     @Test
-    fun `buildMaintenanceCategoryPresentation filters yearly DMBT by year from record id`() {
+    fun `buildMaintenanceCategoryPresentation filters yearly DMBT by year from source sheet`() {
         val presentation = buildMaintenanceCategoryPresentation(
             items = listOf(
-                sampleLog(recordId = "seed-beta-dmbt-2025-r4", ngayPhatHien = "13/04/2026"),
-                sampleLog(recordId = "seed-beta-dmbt-2026-r4", ngayPhatHien = "13/04/2026")
+                sampleLog(recordId = "seed-beta-dmbt-a", ngayPhatHien = "13/04/2026", sourceSheetId = 989601207),
+                sampleLog(recordId = "seed-beta-dmbt-b", ngayPhatHien = "13/04/2026", sourceSheetId = 1607125070)
             ),
             selectedCategoryId = yearlyCategoryId(2025)
         )
 
         assertEquals(yearlyCategoryId(2025), presentation.selectedCategoryId)
-        assertEquals(listOf("seed-beta-dmbt-2025-r4"), presentation.visibleItems.map { it.recordId })
+        assertEquals(listOf("seed-beta-dmbt-a"), presentation.visibleItems.map { it.recordId })
+    }
+
+    @Test
+    fun `buildMaintenanceCategoryPresentation does not classify by monthly text when source is yearly`() {
+        val presentation = buildMaintenanceCategoryPresentation(
+            items = listOf(
+                sampleLog(
+                    recordId = "manual-yearly-id",
+                    ngayPhatHien = "07/01/2025",
+                    hangMuc = "DMBT T5.2026",
+                    sourceSheetId = 989601207
+                )
+            ),
+            selectedCategoryId = CATEGORY_MONTHLY_DMBT
+        )
+
+        assertTrue(presentation.visibleItems.isEmpty())
     }
 
     private fun sampleLog(
         recordId: String,
         ngayPhatHien: String,
         ngaySuaChua: String? = null,
-        hangMuc: String = "Xuong 3,4"
+        hangMuc: String = "Xuong 3,4",
+        sourceSheetId: Int? = null
     ): DeviceLog = DeviceLog(
         recordId = recordId,
         maThietBi = "TB001",
@@ -186,6 +204,7 @@ class CategoryFilterMapperTest {
         ngayPhatHien = ngayPhatHien,
         ngaySuaChua = ngaySuaChua,
         ghiChu = "",
-        updatedAt = 1L
+        updatedAt = 1L,
+        sourceSheetId = sourceSheetId
     )
 }

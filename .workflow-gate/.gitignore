@@ -1,0 +1,5 @@
+﻿logs/
+*.stdout.log
+*.stderr.log
+*.meta.json
+!MCP_RISK_REPORT.meta.json

@@ -1,5 +1,6 @@
 package com.example.devicetracker.ui.search
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.devicetracker.domain.model.DeviceLog
@@ -7,13 +8,17 @@ import com.example.devicetracker.domain.model.RepairFilter
 import com.example.devicetracker.domain.usecase.SearchLogsByDeviceCodeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @HiltViewModel
 class SearchViewModel @Inject constructor(
@@ -25,6 +30,8 @@ class SearchViewModel @Inject constructor(
 
     private var searchJob: Job? = null
     private var timelineJob: Job? = null
+    private var filterJob: Job? = null
+    private var filterGeneration: Long = 0L
     private var latestItems: List<DeviceLog> = emptyList()
     private var timelineReferenceYears: List<Int> = emptyList()
 
@@ -71,7 +78,7 @@ class SearchViewModel @Inject constructor(
                         it.copy(isLoading = false, errorMessage = throwable.message)
                     }
                 }
-                .collect { items ->
+                .collectLatest { items ->
                     latestItems = items
                     applyTimelineFilter(isLoading = false)
                 }
@@ -88,37 +95,80 @@ class SearchViewModel @Inject constructor(
                 .catch {
                     // Keep fallback timeline years from baseline when this stream fails.
                 }
-                .collect { items ->
+                .collectLatest { items ->
                     timelineReferenceYears = extractTimelineYears(items)
-                    applyTimelineFilter()
+                    applyTimelineFilter(isLoading = _uiState.value.isLoading && latestItems.isEmpty())
                 }
         }
     }
 
     private fun applyTimelineFilter(isLoading: Boolean = _uiState.value.isLoading) {
-        val presentation = buildTimelineFilterPresentation(
-            items = latestItems,
-            selectedYear = null,
-            additionalYears = timelineReferenceYears
-        )
-        val categoryPresentation = buildMaintenanceCategoryPresentation(
-            items = latestItems,
-            selectedCategoryId = _uiState.value.selectedCategoryId,
-            additionalYears = timelineReferenceYears
-        )
-        val sortedItems = sortDeviceLogsByDate(
-            items = categoryPresentation.visibleItems,
-            field = _uiState.value.selectedSortField,
-            order = _uiState.value.selectedSortOrder
-        )
-        _uiState.update {
-            it.copy(
-                items = sortedItems,
-                timelineYearOptions = presentation.years,
-                categoryOptions = categoryPresentation.categoryOptions,
-                selectedCategoryId = categoryPresentation.selectedCategoryId,
-                isLoading = isLoading
-            )
+        val queryItems = latestItems
+        val referenceYears = timelineReferenceYears
+        val selectedCategoryId = _uiState.value.selectedCategoryId
+        val selectedSortField = _uiState.value.selectedSortField
+        val selectedSortOrder = _uiState.value.selectedSortOrder
+        val generation = ++filterGeneration
+
+        filterJob?.cancel()
+        filterJob = viewModelScope.launch {
+            runCatching {
+                withContext(Dispatchers.Default) {
+                    val presentation = buildTimelineFilterPresentation(
+                        items = queryItems,
+                        selectedYear = null,
+                        additionalYears = referenceYears
+                    )
+                    val categoryPresentation = buildMaintenanceCategoryPresentation(
+                        items = queryItems,
+                        selectedCategoryId = selectedCategoryId,
+                        additionalYears = referenceYears
+                    )
+                    val sortedItems = sortDeviceLogsByDate(
+                        items = categoryPresentation.visibleItems,
+                        field = selectedSortField,
+                        order = selectedSortOrder
+                    )
+
+                    FilterComputation(
+                        items = sortedItems,
+                        years = presentation.years,
+                        categoryOptions = categoryPresentation.categoryOptions,
+                        selectedCategoryId = categoryPresentation.selectedCategoryId
+                    )
+                }
+            }.onSuccess { computed ->
+                if (generation != filterGeneration) return@onSuccess
+                _uiState.update {
+                    it.copy(
+                        items = computed.items,
+                        timelineYearOptions = computed.years,
+                        categoryOptions = computed.categoryOptions,
+                        selectedCategoryId = computed.selectedCategoryId,
+                        isLoading = isLoading
+                    )
+                }
+            }.onFailure { throwable ->
+                if (throwable is CancellationException) return@onFailure
+                Log.e(TAG, "applyTimelineFilter failed: ${throwable.message}", throwable)
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = throwable.message ?: "Khong the tai du lieu danh sach."
+                    )
+                }
+            }
         }
+    }
+
+    private data class FilterComputation(
+        val items: List<DeviceLog>,
+        val years: List<Int>,
+        val categoryOptions: List<MaintenanceCategoryOption>,
+        val selectedCategoryId: String
+    )
+
+    companion object {
+        private const val TAG = "SearchViewModel"
     }
 }

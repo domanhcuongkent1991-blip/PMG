@@ -22,7 +22,7 @@ interface HgtCheckDao {
     @Query("SELECT * FROM hgt_checks ORDER BY maThietBi ASC")
     suspend fun getAll(): List<HgtCheckEntity>
 
-    @Query("SELECT * FROM hgt_checks WHERE syncStatus != 'SYNCED' ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM hgt_checks WHERE syncStatus = 'PENDING' ORDER BY updatedAt DESC")
     suspend fun getPendingChecks(): List<HgtCheckEntity>
 
     @Query(

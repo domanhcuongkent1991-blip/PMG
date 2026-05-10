@@ -34,9 +34,13 @@ out/
 **/.gradle-user/
 **/.gradle-user-home/
 **/.home/
+**/.tmp/
+**/.appdata/
 **/.isolated-build/
 **/.kotlin/
 .home/
+.tmp/
+.appdata/
 .tools/
 .gradle/
 **/.gradle/
@@ -59,6 +63,21 @@ captures/
 .workflow-gate/
 .planning/
 
+# Governance workflow files required by local checks and CI
+!.workflow-gate/
+!.workflow-gate/.gitignore
+!.workflow-gate/check-workflow-order.ps1
+!.workflow-gate/MCP_EXECUTION_PLAN.json
+!.workflow-gate/MCP_RISK_REPORT.md
+!.workflow-gate/MCP_RISK_REPORT.meta.json
+!.workflow-gate/state.json
+!.workflow-gate/approval-ledger.jsonl
+!.planning/
+.planning/*
+!.planning/phases/
+!.planning/phases/**/
+!.planning/phases/**/*-PLAN.md
+
 # Verification sandboxes and generated UI dumps
 _verify_android_mvp/
 _verify_ui_redesign/
@@ -68,6 +87,12 @@ android-mvp/*.xml
 android-mvp/*log*.txt
 android-mvp/jobscheduler_dump*.txt
 android-mvp/forced_job*.txt
+out/
+.gsd-runtime/
+docs/uat/evidence/**
+!docs/uat/evidence/
+!docs/uat/evidence/**/
+!docs/uat/evidence/**/.gitkeep
 
 # Local backup files generated during setup/repair
 *.bak

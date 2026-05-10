@@ -32,4 +32,12 @@ interface SyncQueueDao {
 
     @Query("DELETE FROM sync_queue WHERE recordId = :recordId")
     suspend fun deleteByRecordId(recordId: String)
+
+    @Query(
+        "DELETE FROM sync_queue " +
+            "WHERE operation = 'UPSERT_LOG' " +
+            "AND recordId = :recordId " +
+            "AND lastError LIKE 'Ambiguous DMBT fallback key for push:%'"
+    )
+    suspend fun deleteAmbiguousPushErrorByRecordId(recordId: String): Int
 }

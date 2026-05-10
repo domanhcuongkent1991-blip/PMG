@@ -242,6 +242,28 @@ fun SyncStatusScreen(
             )
 
             Text(
+                text = stringResource(R.string.sync_status_sheet_issues_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            if (uiState.sheetIssueItems.isEmpty()) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = stringResource(R.string.sync_status_sheet_issues_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            } else {
+                uiState.sheetIssueItems.forEach { item ->
+                    SheetIssueCard(item = item)
+                }
+            }
+
+            Text(
                 text = stringResource(R.string.sync_status_pending_items_title),
                 style = MaterialTheme.typography.titleMedium
             )
@@ -259,7 +281,15 @@ fun SyncStatusScreen(
                 }
             } else {
                 uiState.pendingItems.forEach { item ->
-                    PendingSyncItemCard(item = item)
+                    val canIgnoreAmbiguous = item.id.startsWith("log:") &&
+                        item.typeLabel == "DMBT" &&
+                        item.detail.contains("Ambiguous DMBT fallback key for push")
+                    PendingSyncItemCard(
+                        item = item,
+                        canIgnoreAmbiguous = canIgnoreAmbiguous,
+                        isIgnoring = uiState.ignoringItemId == item.id,
+                        onIgnoreAmbiguous = { viewModel.ignoreAmbiguousPending(item.id) }
+                    )
                 }
             }
 
@@ -289,7 +319,59 @@ fun SyncStatusScreen(
 }
 
 @Composable
-private fun PendingSyncItemCard(item: PendingSyncItem) {
+private fun SheetIssueCard(item: SyncDataIssueUiItem) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        tonalElevation = 2.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = item.typeLabel,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            Text(
+                text = item.sheetTitle,
+                style = MaterialTheme.typography.labelLarge
+            )
+            if (item.deviceCode.isNotBlank()) {
+                Text(
+                    text = item.deviceCode,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            if (item.discoveryDate.isNotBlank()) {
+                Text(
+                    text = stringResource(R.string.sync_status_sheet_issue_date, item.discoveryDate),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            if (item.description.isNotBlank()) {
+                Text(
+                    text = stringResource(R.string.sync_status_sheet_issue_detail, item.description),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Text(
+                text = stringResource(R.string.sync_status_sheet_issue_rows, item.rowNumbers),
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun PendingSyncItemCard(
+    item: PendingSyncItem,
+    canIgnoreAmbiguous: Boolean,
+    isIgnoring: Boolean,
+    onIgnoreAmbiguous: () -> Unit
+) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 2.dp,
@@ -323,6 +405,23 @@ private fun PendingSyncItemCard(item: PendingSyncItem) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
+            if (canIgnoreAmbiguous) {
+                OutlinedButton(
+                    onClick = onIgnoreAmbiguous,
+                    enabled = !isIgnoring,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    if (isIgnoring) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .padding(end = 8.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                    Text(stringResource(R.string.sync_status_ignore_ambiguous))
+                }
+            }
         }
     }
 }

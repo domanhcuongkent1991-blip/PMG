@@ -37,13 +37,15 @@ class DeviceTrackerApp : Application(), Configuration.Provider {
                 .onSuccess { seededCount ->
                     if (seededCount > 0) {
                         Log.i(TAG, "Seeded $seededCount local records from bundled sheet snapshot.")
+                    } else {
+                        Log.i(TAG, "Bundled snapshot seeding disabled or skipped; app relies on remote sync.")
                     }
                 }
                 .onFailure { throwable ->
                     Log.w(TAG, "Local seed skipped: ${throwable.message}")
                 }
         }
-        syncScheduler.schedulePeriodicSync()
+        syncScheduler.logStartupPeriodicSyncSkipped()
         hgtReminderScheduler.rescheduleAllAsync()
     }
 

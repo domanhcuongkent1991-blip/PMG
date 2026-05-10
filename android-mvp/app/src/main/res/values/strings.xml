@@ -1,5 +1,5 @@
 ﻿<resources>
-    <string name="app_name">DeviceTracker</string>
+    <string name="app_name">Checklist-PMG</string>
 
     <string name="cd_back">Quay lại</string>
     <string name="cd_add_new">Thêm bản ghi mới</string>
@@ -26,9 +26,16 @@
     <string name="sidebar_yearly_dmbt_section">Khu 1 - DMBT theo năm</string>
     <string name="sidebar_monthly_dmbt_section">Khu 2 - DMBT theo tháng</string>
     <string name="sidebar_monthly_repair_section">Khu 3 - Sửa chữa theo tháng</string>
+    <string name="sidebar_monthly_label_settings">Đổi tên mục tháng</string>
+    <string name="sidebar_monthly_label_settings_desc">Đặt tên hiển thị thủ công cho 2 mục tháng trong Sidebar.</string>
+    <string name="sidebar_monthly_dmbt_label_input">Tên hiển thị DMBT tháng</string>
+    <string name="sidebar_monthly_repair_label_input">Tên hiển thị Sửa chữa tháng</string>
+    <string name="sidebar_label_save">Lưu</string>
+    <string name="sidebar_label_reset_default">Reset mặc định</string>
+    <string name="sidebar_label_close">Đóng</string>
     <string name="sidebar_hgt_section">Khu 4 - HGT định kỳ</string>
-    <string name="category_monthly_dmbt_t4_2026">DMBT T4.2026</string>
-    <string name="category_monthly_repair_t4_2026">Sửa chữa T4.2026</string>
+    <string name="category_monthly_dmbt">DMBT tháng</string>
+    <string name="category_monthly_repair">Sửa chữa tháng</string>
 
     <string name="sync_status_title">Trạng thái đồng bộ</string>
     <string name="sync_status_refresh">Làm mới</string>
@@ -40,7 +47,7 @@
     <string name="sync_status_mode_selected_full">Đang chọn: Đồng bộ đầy đủ</string>
     <string name="sync_status_sync_now_quick">Đồng bộ nhanh</string>
     <string name="sync_status_sync_now_full">Đồng bộ đầy đủ</string>
-    <string name="sync_status_total_logs">Tổng bản ghi local</string>
+    <string name="sync_status_total_logs">Tổng local (DMBT + HGT)</string>
     <string name="sync_status_synced_logs">Đã đồng bộ (SYNCED)</string>
     <string name="sync_status_pending_logs">Chờ đồng bộ (PENDING)</string>
     <string name="sync_status_breakdown_title">Chi tiết theo nhóm dữ liệu</string>
@@ -52,8 +59,14 @@
     <string name="sync_status_queue_size">Số mục trong hàng đợi</string>
     <string name="sync_status_queue_error_count">Mục có lỗi retry</string>
     <string name="sync_status_latest_error">Lỗi gần nhất trong hàng đợi</string>
+    <string name="sync_status_sheet_issues_title">Cảnh báo dữ liệu Google Sheet</string>
+    <string name="sync_status_sheet_issues_empty">Không phát hiện lỗi duplicate hoặc ngày sai sau lần đồng bộ gần nhất.</string>
+    <string name="sync_status_sheet_issue_date">Ngày: %1$s</string>
+    <string name="sync_status_sheet_issue_detail">Nội dung: %1$s</string>
+    <string name="sync_status_sheet_issue_rows">Dòng log: %1$s</string>
     <string name="sync_status_pending_items_title">Thiết bị chờ đồng bộ</string>
     <string name="sync_status_pending_items_empty">Không có thiết bị chờ đồng bộ</string>
+    <string name="sync_status_ignore_ambiguous">Bỏ qua lỗi ambiguous này</string>
 
     <string name="hgt_title">HGT định kỳ</string>
     <string name="hgt_empty_state">Chưa có dữ liệu HGT phù hợp</string>

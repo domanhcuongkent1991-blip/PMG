@@ -1,5 +1,7 @@
 ﻿package com.example.devicetracker.ui.search
 
+import android.util.Log
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -55,6 +57,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -62,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.Alignment
@@ -70,14 +74,19 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.devicetracker.R
+import com.example.devicetracker.data.local.preferences.SidebarMonthlyLabelStore
 import com.example.devicetracker.domain.model.RepairFilter
 import com.example.devicetracker.ui.components.DeviceLogCard
 import kotlinx.coroutines.launch
@@ -91,15 +100,43 @@ fun SearchScreen(
     onOpenDetail: (String) -> Unit,
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val labelSettingsSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     val searchFocusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val sidebarLabelStore = remember(context.applicationContext) {
+        SidebarMonthlyLabelStore(context.applicationContext)
+    }
+    val defaultMonthlyDmbtLabel = stringResource(R.string.category_monthly_dmbt)
+    val defaultMonthlyRepairLabel = stringResource(R.string.category_monthly_repair)
     var requestSearchFocusSignal by remember { mutableIntStateOf(0) }
     var isFilterSheetVisible by remember { mutableStateOf(false) }
+    var isLabelSettingsVisible by remember { mutableStateOf(false) }
+    var monthlyDmbtLabelOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var monthlyRepairLabelOverride by rememberSaveable { mutableStateOf<String?>(null) }
+    var monthlyDmbtLabelDraft by rememberSaveable { mutableStateOf("") }
+    var monthlyRepairLabelDraft by rememberSaveable { mutableStateOf("") }
+    var navigationDispatched by rememberSaveable { mutableStateOf(false) }
+    val monthlyDmbtLabel = monthlyDmbtLabelOverride ?: defaultMonthlyDmbtLabel
+    val monthlyRepairLabel = monthlyRepairLabelOverride ?: defaultMonthlyRepairLabel
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                navigationDispatched = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     fun openFilterSheet() {
         isFilterSheetVisible = true
@@ -113,11 +150,49 @@ fun SearchScreen(
         }
     }
 
+    fun openLabelSettingsSheet() {
+        monthlyDmbtLabelDraft = monthlyDmbtLabel
+        monthlyRepairLabelDraft = monthlyRepairLabel
+        isLabelSettingsVisible = true
+    }
+
+    fun closeLabelSettingsSheet() {
+        scope.launch {
+            labelSettingsSheetState.hide()
+            isLabelSettingsVisible = false
+        }
+    }
+
+    fun saveLabelOverrides() {
+        sidebarLabelStore.save(
+            monthlyDmbtLabelInput = monthlyDmbtLabelDraft,
+            monthlyRepairLabelInput = monthlyRepairLabelDraft
+        )
+        val saved = sidebarLabelStore.load()
+        monthlyDmbtLabelOverride = saved.monthlyDmbtLabel
+        monthlyRepairLabelOverride = saved.monthlyRepairLabel
+        closeLabelSettingsSheet()
+    }
+
+    fun resetLabelOverrides() {
+        sidebarLabelStore.resetToDefault()
+        monthlyDmbtLabelOverride = null
+        monthlyRepairLabelOverride = null
+        monthlyDmbtLabelDraft = defaultMonthlyDmbtLabel
+        monthlyRepairLabelDraft = defaultMonthlyRepairLabel
+    }
+
     LaunchedEffect(requestSearchFocusSignal) {
         if (requestSearchFocusSignal > 0) {
             searchFocusRequester.requestFocus()
             keyboardController?.show()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        val loaded = sidebarLabelStore.load()
+        monthlyDmbtLabelOverride = loaded.monthlyDmbtLabel
+        monthlyRepairLabelOverride = loaded.monthlyRepairLabel
     }
 
     ModalNavigationDrawer(
@@ -127,14 +202,23 @@ fun SearchScreen(
             MaintenanceDrawer(
                 uiState = uiState,
                 onAddNew = {
+                    if (navigationDispatched) return@MaintenanceDrawer
+                    navigationDispatched = true
+                    Log.i(TAG, "WS_FIX_SEARCH_NAV_ADD")
                     scope.launch { drawerState.close() }
                     onAddNew()
                 },
                 onOpenSyncStatus = {
+                    if (navigationDispatched) return@MaintenanceDrawer
+                    navigationDispatched = true
+                    Log.i(TAG, "WS_FIX_SEARCH_NAV_SYNC")
                     scope.launch { drawerState.close() }
                     onOpenSyncStatus()
                 },
                 onOpenHgtChecks = {
+                    if (navigationDispatched) return@MaintenanceDrawer
+                    navigationDispatched = true
+                    Log.i(TAG, "WS_FIX_SEARCH_NAV_HGT")
                     scope.launch { drawerState.close() }
                     onOpenHgtChecks()
                 },
@@ -151,6 +235,12 @@ fun SearchScreen(
                 onCategorySelected = { categoryId ->
                     viewModel.onCategorySelected(categoryId)
                     scope.launch { drawerState.close() }
+                },
+                monthlyDmbtLabel = monthlyDmbtLabel,
+                monthlyRepairLabel = monthlyRepairLabel,
+                onOpenMonthlyLabelSettings = {
+                    scope.launch { drawerState.close() }
+                    openLabelSettingsSheet()
                 }
             )
         }
@@ -192,7 +282,12 @@ fun SearchScreen(
                 },
                 floatingActionButton = {
                     FloatingActionButton(
-                        onClick = onAddNew,
+                        onClick = {
+                            if (navigationDispatched) return@FloatingActionButton
+                            navigationDispatched = true
+                            Log.i(TAG, "WS_FIX_SEARCH_NAV_ADD_FAB")
+                            onAddNew()
+                        },
                         modifier = Modifier.navigationBarsPadding(),
                         containerColor = Color(0xFF0B8FD3),
                         contentColor = Color.White
@@ -237,7 +332,7 @@ fun SearchScreen(
                     }
 
                     when {
-                        uiState.isLoading -> {
+                        uiState.items.isEmpty() && uiState.isLoading -> {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
                                 contentAlignment = Alignment.Center
@@ -251,16 +346,31 @@ fun SearchScreen(
                         }
 
                         else -> {
-                            LazyColumn(
-                                verticalArrangement = Arrangement.spacedBy(14.dp),
-                                contentPadding = PaddingValues(bottom = 104.dp)
-                            ) {
-                                itemsIndexed(uiState.items, key = { _, item -> item.recordId }) { index, item ->
-                                    DeviceLogCard(
-                                        item = item,
-                                        displayIndex = index + 1,
-                                        onClick = { onOpenDetail(item.recordId) }
-                                    )
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                LazyColumn(
+                                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                                    contentPadding = PaddingValues(bottom = 104.dp)
+                                ) {
+                                    itemsIndexed(uiState.items, key = { _, item -> item.recordId }) { index, item ->
+                                        DeviceLogCard(
+                                            item = item,
+                                            displayIndex = index + 1,
+                                            onClick = {
+                                                if (navigationDispatched) return@DeviceLogCard
+                                                navigationDispatched = true
+                                                Log.i(TAG, "WS_FIX_SEARCH_NAV_DETAIL:${item.recordId}")
+                                                onOpenDetail(item.recordId)
+                                            }
+                                        )
+                                    }
+                                }
+                                if (uiState.isLoading && uiState.items.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator()
+                                    }
                                 }
                             }
                         }
@@ -288,6 +398,23 @@ fun SearchScreen(
                 onSortOrderSelected = { order ->
                     applyFilterAndClose { viewModel.onSortOrderSelected(order) }
                 }
+            )
+        }
+    }
+
+    if (isLabelSettingsVisible) {
+        ModalBottomSheet(
+            onDismissRequest = { isLabelSettingsVisible = false },
+            sheetState = labelSettingsSheetState
+        ) {
+            MonthlyLabelSettingsSheet(
+                monthlyDmbtLabel = monthlyDmbtLabelDraft,
+                monthlyRepairLabel = monthlyRepairLabelDraft,
+                onMonthlyDmbtLabelChange = { monthlyDmbtLabelDraft = it },
+                onMonthlyRepairLabelChange = { monthlyRepairLabelDraft = it },
+                onSave = ::saveLabelOverrides,
+                onReset = ::resetLabelOverrides,
+                onClose = ::closeLabelSettingsSheet
             )
         }
     }
@@ -471,6 +598,70 @@ private fun FilterOptionsSection(
 }
 
 @Composable
+private fun MonthlyLabelSettingsSheet(
+    monthlyDmbtLabel: String,
+    monthlyRepairLabel: String,
+    onMonthlyDmbtLabelChange: (String) -> Unit,
+    onMonthlyRepairLabelChange: (String) -> Unit,
+    onSave: () -> Unit,
+    onReset: () -> Unit,
+    onClose: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.sidebar_monthly_label_settings),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = stringResource(R.string.sidebar_monthly_label_settings_desc),
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color(0xFF4B575C)
+        )
+        OutlinedTextField(
+            value = monthlyDmbtLabel,
+            onValueChange = onMonthlyDmbtLabelChange,
+            label = { Text(stringResource(R.string.sidebar_monthly_dmbt_label_input)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        OutlinedTextField(
+            value = monthlyRepairLabel,
+            onValueChange = onMonthlyRepairLabelChange,
+            label = { Text(stringResource(R.string.sidebar_monthly_repair_label_input)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            CompactSheetOption(
+                text = stringResource(R.string.sidebar_label_save),
+                active = true,
+                onClick = onSave
+            )
+            CompactSheetOption(
+                text = stringResource(R.string.sidebar_label_reset_default),
+                active = false,
+                onClick = onReset
+            )
+            CompactSheetOption(
+                text = stringResource(R.string.sidebar_label_close),
+                active = false,
+                onClick = onClose
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
 private fun CompactSheetOption(
     text: String,
     active: Boolean,
@@ -512,7 +703,10 @@ private fun MaintenanceDrawer(
     onOpenHgtChecks: () -> Unit,
     onOpenSearch: () -> Unit,
     onFilterSelected: (RepairFilter) -> Unit,
-    onCategorySelected: (String) -> Unit
+    onCategorySelected: (String) -> Unit,
+    monthlyDmbtLabel: String,
+    monthlyRepairLabel: String,
+    onOpenMonthlyLabelSettings: () -> Unit
 ) {
     ModalDrawerSheet(
         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -569,7 +763,7 @@ private fun MaintenanceDrawer(
             .filter { it.type == MaintenanceCategoryType.YEARLY_ALL || it.type == MaintenanceCategoryType.YEARLY }
             .forEach { option ->
                 DrawerMenuItem(
-                    label = categoryLabel(option),
+                    label = categoryLabel(option, monthlyDmbtLabel, monthlyRepairLabel),
                     selected = uiState.selectedCategoryId == option.id,
                     icon = Icons.Default.CalendarMonth,
                     onClick = { onCategorySelected(option.id) }
@@ -581,7 +775,7 @@ private fun MaintenanceDrawer(
             .filter { it.type == MaintenanceCategoryType.MONTHLY_DMBT }
             .forEach { option ->
                 DrawerMenuItem(
-                    label = categoryLabel(option),
+                    label = categoryLabel(option, monthlyDmbtLabel, monthlyRepairLabel),
                     selected = uiState.selectedCategoryId == option.id,
                     icon = Icons.Default.CalendarMonth,
                     onClick = { onCategorySelected(option.id) }
@@ -593,12 +787,18 @@ private fun MaintenanceDrawer(
             .filter { it.type == MaintenanceCategoryType.MONTHLY_REPAIR }
             .forEach { option ->
                 DrawerMenuItem(
-                    label = categoryLabel(option),
+                    label = categoryLabel(option, monthlyDmbtLabel, monthlyRepairLabel),
                     selected = uiState.selectedCategoryId == option.id,
                     icon = Icons.Default.Build,
                     onClick = { onCategorySelected(option.id) }
                 )
             }
+        DrawerMenuItem(
+            label = stringResource(R.string.sidebar_monthly_label_settings),
+            selected = false,
+            icon = Icons.Default.Settings,
+            onClick = onOpenMonthlyLabelSettings
+        )
 
         DrawerSectionTitle(text = stringResource(R.string.sidebar_hgt_section))
         DrawerMenuItem(
@@ -728,11 +928,15 @@ private fun filterLabel(filter: RepairFilter): String = when (filter) {
 }
 
 @Composable
-private fun categoryLabel(option: MaintenanceCategoryOption): String = when (option.type) {
+private fun categoryLabel(
+    option: MaintenanceCategoryOption,
+    monthlyDmbtLabel: String,
+    monthlyRepairLabel: String
+): String = when (option.type) {
     MaintenanceCategoryType.YEARLY_ALL -> stringResource(R.string.category_all)
     MaintenanceCategoryType.YEARLY -> stringResource(R.string.timeline_chip_label, option.year ?: 0)
-    MaintenanceCategoryType.MONTHLY_DMBT -> stringResource(R.string.category_monthly_dmbt_t4_2026)
-    MaintenanceCategoryType.MONTHLY_REPAIR -> stringResource(R.string.category_monthly_repair_t4_2026)
+    MaintenanceCategoryType.MONTHLY_DMBT -> monthlyDmbtLabel
+    MaintenanceCategoryType.MONTHLY_REPAIR -> monthlyRepairLabel
 }
 
 @Composable
@@ -751,3 +955,15 @@ private fun sortOrderArrow(order: DateSortOrder): String = when (order) {
     DateSortOrder.NEWEST_FIRST -> "↓"
     DateSortOrder.OLDEST_FIRST -> "↑"
 }
+
+
+
+
+
+
+private const val TAG = "SearchScreen"
+
+
+
+
+
