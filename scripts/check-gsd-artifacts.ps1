@@ -40,7 +40,7 @@ function Test-SourcePath {
   param([Parameter(Mandatory = $true)][string]$Path)
   if ($Path.StartsWith("android-mvp/")) { return $true }
   if ($Path -match '(^|/)(build\.gradle|settings\.gradle|gradle\.properties|gradlew|gradlew\.bat)$') { return $true }
-  if ($Path.StartsWith("scripts/") -and $Path -notmatch '^scripts/(check|approve|validate|test-workflow|verify-).*\.(ps1|js)$') { return $true }
+  if ($Path.StartsWith("scripts/") -and $Path -notmatch '^scripts/(check|approve|validate|test-workflow|test-safety|start-safety|finish-safety|list-safety|verify-).*\.(ps1|js)$') { return $true }
   return $false
 }
 
@@ -76,7 +76,7 @@ function Test-RawEvidencePath {
 
 function Test-WorkflowScriptPath {
   param([Parameter(Mandatory = $true)][string]$Path)
-  if ($Path -match '^scripts/(check|approve|validate|test-workflow|verify-).*\.(ps1|js)$') { return $true }
+  if ($Path -match '^scripts/(check|approve|validate|test-workflow|test-safety|start-safety|finish-safety|list-safety|verify-).*\.(ps1|js)$') { return $true }
   if ($Path -eq "package.json") { return $true }
   if ($Path -eq ".gitignore") { return $true }
   return $false

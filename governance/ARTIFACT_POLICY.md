@@ -87,6 +87,51 @@ Before ending a GSD phase:
 4. Commit or archive finished governance artifacts.
 5. Write the final state to `WORKLOG_YYYY-MM-DD.md`.
 
+## Safety Checkpoints
+
+Use safety checkpoints to protect a task without creating noisy temporary commits.
+
+Start a task:
+
+```powershell
+npm run workflow:task-start -- -Name "short task name"
+```
+
+The start step:
+
+- runs the secret guard,
+- runs the GSD artifact clean check,
+- refuses visible raw runtime evidence,
+- creates a local `safety/pre-task/...` tag,
+- writes `.workflow-gate/current-safety-checkpoint.json`.
+
+Finish a task:
+
+```powershell
+npm run workflow:task-finish
+```
+
+The finish step:
+
+- runs the secret guard,
+- runs the clean check,
+- runs `workflow:check` when available,
+- deletes the safety tag only after a later official commit exists,
+- keeps the tag if there is no official commit or if the repo is still dirty.
+
+List active or stale checkpoints:
+
+```powershell
+npm run workflow:task-checkpoints
+```
+
+Rules:
+
+- Safety tags are local rescue markers and should not be pushed.
+- Safety tags are temporary and should be removed after the verified official commit.
+- The workflow may create and clean safety tags automatically after the owner gives a task intent.
+- Destructive rollback, remote push, and real Google Sheet writes still require explicit owner approval.
+
 ## Interpretation For Non-Technical Owners
 
 The repo should not become a storage box for every screenshot, database, and log file.

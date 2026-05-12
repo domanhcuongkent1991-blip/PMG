@@ -29,6 +29,10 @@
                     "workflow:check":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-workflow.ps1 -ProjectRoot .",
                     "workflow:clean-check":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\check-gsd-artifacts.ps1 -ProjectRoot .",
                     "workflow:clean-test":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\test-workflow-clean-check.ps1",
+                    "workflow:task-start":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-safety-checkpoint.ps1 -ProjectRoot .",
+                    "workflow:task-finish":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\finish-safety-checkpoint.ps1 -ProjectRoot .",
+                    "workflow:task-checkpoints":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\list-safety-checkpoints.ps1 -ProjectRoot .",
+                    "workflow:task-test":  "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\test-safety-checkpoint.ps1",
                     "gsd:anywhere:doctor":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\"",
                     "gsd:anywhere:fix":  "powershell -ExecutionPolicy Bypass -File D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1 -ProjectPath \"F:\\codex_android_gsheet_full_pack\" -AutoFix",
                     "gsd:anywhere:run":  "powershell -ExecutionPolicy Bypass -File \"D:\\GSD-GIAMSAT-PROJECT\\scripts\\Invoke-GsdAnywhere.ps1\" -ProjectPath \"F:\\codex_android_gsheet_full_pack\" -AutoFix -RunAutopilot -SafetyLevel safe"
