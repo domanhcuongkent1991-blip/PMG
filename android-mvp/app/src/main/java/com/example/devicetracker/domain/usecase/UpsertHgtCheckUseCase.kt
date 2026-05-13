@@ -10,13 +10,15 @@ class UpsertHgtCheckUseCase @Inject constructor(
         id: String?,
         maThietBi: String,
         chuKyNgay: Int,
-        lanGanNhat: String
+        lanGanNhat: String,
+        ghiChu: String
     ) {
         repository.upsertCheck(
             id = id,
             maThietBi = maThietBi,
             chuKyNgay = chuKyNgay,
-            lanGanNhat = lanGanNhat
+            lanGanNhat = lanGanNhat,
+            ghiChu = ghiChu
         )
     }
 }

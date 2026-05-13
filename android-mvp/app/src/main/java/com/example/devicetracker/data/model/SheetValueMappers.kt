@@ -137,6 +137,7 @@ fun HgtCheck.toHgtRow(): Map<String, String> = linkedMapOf(
     HgtCheckColumns.CHU_KY_NGAY to chuKyNgay.toString(),
     HgtCheckColumns.LAN_GAN_NHAT to lanGanNhat,
     HgtCheckColumns.LAN_TIEP_THEO to lanTiepTheo,
+    HgtCheckColumns.GHI_CHU to ghiChu,
     HgtCheckColumns.UPDATED_AT to updatedAt.toString()
 )
 
@@ -179,6 +180,7 @@ fun Map<String, String>.toHgtCheckFromRow(): Result<HgtCheck> {
             chuKyNgay = chuKyNgay,
             lanGanNhat = lanGanNhat,
             lanTiepTheo = lanTiepTheo,
+            ghiChu = get(HgtCheckColumns.GHI_CHU).orEmpty().trim(),
             updatedAt = updatedAt
         )
     )

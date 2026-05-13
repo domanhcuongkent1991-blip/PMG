@@ -4,6 +4,7 @@ data class UpdateRepairDateUiState(
     val recordId: String = "",
     val maThietBi: String = "",
     val ngayPhatHien: String = "",
+    val tinhTrangThietBiInput: String = "",
     val ngaySuaChuaInput: String = "",
     val ghiChuInput: String = "",
     val isLoading: Boolean = true,

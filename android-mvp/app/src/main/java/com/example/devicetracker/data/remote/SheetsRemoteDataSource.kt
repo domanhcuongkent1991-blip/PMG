@@ -445,55 +445,7 @@ class SheetsRemoteDataSource @Inject constructor(
 
                 val gridRows = fetchGridRows(sheetTitle = hgtSheetTitle, accessToken = accessToken)
                 if (gridRows.isEmpty()) return@withContext emptyList()
-                val schema = parseHgtSchema(gridRows)
-
-                gridRows
-                    .drop(1)
-                    .mapIndexedNotNull { index, rowValues ->
-                        val rowNumber = index + 2
-                        val maThietBi = schema.valueFromRow(rowValues, HgtCheckColumns.MA_THIET_BI).trim()
-                        if (maThietBi.isBlank()) return@mapIndexedNotNull null
-
-                        val rawCycle = schema.valueFromRow(rowValues, HgtCheckColumns.CHU_KY_NGAY).trim()
-                        val chuKyNgay = rawCycle.toIntOrNull()
-                        if (chuKyNgay == null || chuKyNgay <= 0) {
-                            // Keep sync stable: skip malformed/incomplete row instead of failing all HGT pull.
-                            return@mapIndexedNotNull null
-                        }
-
-                        val latestRaw = schema.valueFromRow(rowValues, HgtCheckColumns.LAN_GAN_NHAT).trim()
-                        if (latestRaw.isBlank()) {
-                            return@mapIndexedNotNull null
-                        }
-                        val lanGanNhat = DateTextFormatter.normalizeInputOrNull(latestRaw)
-                            ?: DateTextFormatter.formatForDisplay(latestRaw)
-                        if (lanGanNhat.isBlank() || lanGanNhat == "--") {
-                            return@mapIndexedNotNull null
-                        }
-
-                        val nextRaw = schema.valueFromRow(rowValues, HgtCheckColumns.LAN_TIEP_THEO).trim()
-                        val lanTiepTheo = DateTextFormatter.normalizeInputOrNull(nextRaw)
-                            ?: if (nextRaw.isNotBlank()) DateTextFormatter.formatForDisplay(nextRaw) else ""
-                        val calculatedNext = if (lanTiepTheo.isBlank()) {
-                            HgtDateCalculator.calculateNextDate(lanGanNhat, chuKyNgay)
-                        } else {
-                            lanTiepTheo
-                        }
-
-                        val recordIdRaw = schema.valueFromRow(rowValues, HgtCheckColumns.RECORD_ID).trim()
-                        val recordId = recordIdRaw.ifBlank { buildHgtFallbackId(maThietBi) }
-                        val updatedAtRaw = schema.valueFromRow(rowValues, HgtCheckColumns.UPDATED_AT).trim()
-                        val updatedAt = updatedAtRaw.toLongOrNull() ?: 0L
-
-                        HgtCheck(
-                            id = recordId,
-                            maThietBi = maThietBi,
-                            chuKyNgay = chuKyNgay,
-                            lanGanNhat = lanGanNhat,
-                            lanTiepTheo = calculatedNext,
-                            updatedAt = updatedAt
-                        )
-                    }
+                parseHgtRows(gridRows)
             }
         }
     }
@@ -893,6 +845,64 @@ class SheetsRemoteDataSource @Inject constructor(
     }
 
     private fun parseHgtSchema(gridRows: List<List<String>>): HgtSheetSchema {
+        return parseHgtSchemaInternal(gridRows)
+    }
+
+    private fun parseHgtRows(gridRows: List<List<String>>): List<HgtCheck> {
+        if (gridRows.isEmpty()) return emptyList()
+        val schema = parseHgtSchemaInternal(gridRows)
+
+        return gridRows
+            .drop(1)
+            .mapIndexedNotNull { index, rowValues ->
+                val rowNumber = index + 2
+                parseHgtRow(schema, rowValues, rowNumber)
+            }
+    }
+
+    private fun parseHgtRow(schema: HgtSheetSchema, rowValues: List<String>, rowNumber: Int): HgtCheck? {
+        val maThietBi = schema.valueFromRow(rowValues, HgtCheckColumns.MA_THIET_BI).trim()
+        if (maThietBi.isBlank()) return null
+
+        val rawCycle = schema.valueFromRow(rowValues, HgtCheckColumns.CHU_KY_NGAY).trim()
+        val chuKyNgay = rawCycle.toIntOrNull()
+        if (chuKyNgay == null || chuKyNgay <= 0) {
+            // Keep sync stable: skip malformed/incomplete row instead of failing all HGT pull.
+            return null
+        }
+
+        val latestRaw = schema.valueFromRow(rowValues, HgtCheckColumns.LAN_GAN_NHAT).trim()
+        if (latestRaw.isBlank()) return null
+        val lanGanNhat = DateTextFormatter.normalizeInputOrNull(latestRaw)
+            ?: DateTextFormatter.formatForDisplay(latestRaw)
+        if (lanGanNhat.isBlank() || lanGanNhat == "--") return null
+
+        val nextRaw = schema.valueFromRow(rowValues, HgtCheckColumns.LAN_TIEP_THEO).trim()
+        val lanTiepTheo = DateTextFormatter.normalizeInputOrNull(nextRaw)
+            ?: if (nextRaw.isNotBlank()) DateTextFormatter.formatForDisplay(nextRaw) else ""
+        val calculatedNext = if (lanTiepTheo.isBlank()) {
+            HgtDateCalculator.calculateNextDate(lanGanNhat, chuKyNgay)
+        } else {
+            lanTiepTheo
+        }
+
+        val recordIdRaw = schema.valueFromRow(rowValues, HgtCheckColumns.RECORD_ID).trim()
+        val recordId = recordIdRaw.ifBlank { buildHgtFallbackId(maThietBi) }
+        val updatedAtRaw = schema.valueFromRow(rowValues, HgtCheckColumns.UPDATED_AT).trim()
+        val updatedAt = updatedAtRaw.toLongOrNull() ?: 0L
+
+        return HgtCheck(
+            id = recordId,
+            maThietBi = maThietBi,
+            chuKyNgay = chuKyNgay,
+            lanGanNhat = lanGanNhat,
+            lanTiepTheo = calculatedNext,
+            ghiChu = schema.valueFromRow(rowValues, HgtCheckColumns.GHI_CHU).trim(),
+            updatedAt = updatedAt
+        )
+    }
+
+    private fun parseHgtSchemaInternal(gridRows: List<List<String>>): HgtSheetSchema {
         val rawHeaders = gridRows.first().map { it.trim() }
         if (rawHeaders.isEmpty()) {
             throw NonRetryableSyncException("HGT_CHECKS header row is empty.")
@@ -915,6 +925,7 @@ class SheetsRemoteDataSource @Inject constructor(
             HgtCheckColumns.CHU_KY_NGAY to setOf("chu_ky_ngay", "chu_ki_ngay", "chu_ky", "chu_ki", "chu_ki_ngay", "chu_ki_ngay_"),
             HgtCheckColumns.LAN_GAN_NHAT to setOf("lan_gan_nhat", "lan_kiem_tra_gan_nhat", "lan_gan_nhat_"),
             HgtCheckColumns.LAN_TIEP_THEO to setOf("lan_tiep_theo", "lan_kiem_tra_tiep_theo", "lan_tiep_theo_"),
+            HgtCheckColumns.GHI_CHU to setOf("ghi_chu", "ghi_chu_", "ghi_chu_hgt", "ghi_chu_dinh_ky", "ghi_chu_hang_muc"),
             HgtCheckColumns.UPDATED_AT to setOf("updated_at")
         )
 
@@ -1600,6 +1611,12 @@ class SheetsRemoteDataSource @Inject constructor(
             if (gridRows.isEmpty()) return emptyList()
             val parser = TestDmbtPullParser(sheetId, namespaceRecordIds)
             return parser.parse(gridRows)
+        }
+
+        internal fun parsePulledHgtRowsForTest(gridRows: List<List<String>>): List<HgtCheck> {
+            return SheetsRemoteDataSource(
+                sheetConfig = SheetConfig()
+            ).parseHgtRows(gridRows)
         }
 
         /**

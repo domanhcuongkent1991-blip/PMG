@@ -45,6 +45,7 @@ class UpdateRepairDateViewModel @Inject constructor(
                     recordId = log.recordId,
                     maThietBi = log.maThietBi,
                     ngayPhatHien = DateTextFormatter.formatForDisplay(log.ngayPhatHien),
+                    tinhTrangThietBiInput = log.tinhTrangThietBi,
                     ngaySuaChuaInput = if (log.ngaySuaChua.isNullOrBlank()) {
                         ""
                     } else {
@@ -66,6 +67,10 @@ class UpdateRepairDateViewModel @Inject constructor(
         _uiState.update { it.copy(ghiChuInput = value, errorMessage = null) }
     }
 
+    fun onConditionChanged(value: String) {
+        _uiState.update { it.copy(tinhTrangThietBiInput = value, errorMessage = null) }
+    }
+
     fun clearRepairDate() {
         _uiState.update { it.copy(ngaySuaChuaInput = "", errorMessage = null) }
     }
@@ -74,6 +79,7 @@ class UpdateRepairDateViewModel @Inject constructor(
         val state = _uiState.value
         val inputValue = state.ngaySuaChuaInput.trim()
         val normalizedNote = state.ghiChuInput.trim()
+        val normalizedCondition = state.tinhTrangThietBiInput.trim()
         val normalizedRepairDate = if (inputValue.isEmpty()) {
             null
         } else {
@@ -89,7 +95,8 @@ class UpdateRepairDateViewModel @Inject constructor(
                 updateRepairDateUseCase(
                     recordId = recordId,
                     ngaySuaChua = normalizedRepairDate,
-                    ghiChu = normalizedNote
+                    ghiChu = normalizedNote,
+                    tinhTrangThietBi = normalizedCondition
                 )
             }.onSuccess {
                 _uiState.update { it.copy(saveSuccess = true, errorMessage = null) }

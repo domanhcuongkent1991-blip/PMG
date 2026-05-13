@@ -224,10 +224,12 @@ fun HgtCheckScreen(
             deviceCode = uiState.editingDeviceCode,
             cycleDays = uiState.editingCycleDays,
             latestDate = uiState.editingLatestDate,
+            note = uiState.editingNote,
             errorMessage = uiState.editingError,
             onDeviceCodeChanged = viewModel::onEditingDeviceCodeChanged,
             onCycleDaysChanged = viewModel::onEditingCycleDaysChanged,
             onLatestDateChanged = viewModel::onEditingLatestDateChanged,
+            onNoteChanged = viewModel::onEditingNoteChanged,
             onDismiss = viewModel::dismissEdit,
             onSave = viewModel::saveHgtCheck,
             onDelete = viewModel::deleteEditingItem
@@ -311,6 +313,18 @@ private fun HgtCheckCard(
                     modifier = Modifier.weight(1f)
                 )
             }
+            if (item.ghiChu.isNotBlank()) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = stringResource(R.string.label_note),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Text(
+                        text = item.ghiChu,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            }
         }
     }
 }
@@ -339,10 +353,12 @@ private fun EditHgtCheckDialog(
     deviceCode: String,
     cycleDays: String,
     latestDate: String,
+    note: String,
     errorMessage: String?,
     onDeviceCodeChanged: (String) -> Unit,
     onCycleDaysChanged: (String) -> Unit,
     onLatestDateChanged: (String) -> Unit,
+    onNoteChanged: (String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit
@@ -385,6 +401,15 @@ private fun EditHgtCheckDialog(
                     onValueChange = onLatestDateChanged,
                     label = { Text(stringResource(R.string.hgt_latest_date_input)) },
                     singleLine = true,
+                    isError = !errorMessage.isNullOrBlank()
+                )
+                OutlinedTextField(
+                    value = note,
+                    onValueChange = onNoteChanged,
+                    label = { Text(stringResource(R.string.label_note)) },
+                    placeholder = { Text(stringResource(R.string.placeholder_note)) },
+                    minLines = 3,
+                    maxLines = 6,
                     isError = !errorMessage.isNullOrBlank()
                 )
                 if (!errorMessage.isNullOrBlank()) {

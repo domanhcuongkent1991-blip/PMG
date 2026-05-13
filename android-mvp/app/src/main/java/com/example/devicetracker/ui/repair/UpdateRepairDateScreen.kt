@@ -154,6 +154,16 @@ fun UpdateRepairDateScreen(
             }
             item {
                 OutlinedTextField(
+                    value = uiState.tinhTrangThietBiInput,
+                    onValueChange = viewModel::onConditionChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.label_device_condition)) },
+                    minLines = 3,
+                    maxLines = 8
+                )
+            }
+            item {
+                OutlinedTextField(
                     value = uiState.ngaySuaChuaInput,
                     onValueChange = viewModel::onRepairDateChanged,
                     modifier = Modifier.fillMaxWidth(),

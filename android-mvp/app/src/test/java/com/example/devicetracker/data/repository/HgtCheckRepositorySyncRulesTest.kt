@@ -54,6 +54,14 @@ class HgtCheckRepositorySyncRulesTest {
         assertTrue(shouldApplyRemoteHgt(localSynced, remoteChanged))
     }
 
+    @Test
+    fun shouldApplyRemoteHgt_applies_unknown_updatedAt_when_note_changed() {
+        val localSynced = sampleEntity(updatedAt = 500L, syncStatus = "SYNCED")
+        val remoteChanged = sampleDomain(updatedAt = 0L).copy(ghiChu = "Can kiem tra lai gioi han")
+
+        assertTrue(shouldApplyRemoteHgt(localSynced, remoteChanged))
+    }
+
     private fun sampleEntity(updatedAt: Long, syncStatus: String): HgtCheckEntity =
         HgtCheckEntity(
             id = "hgt-1",
@@ -61,6 +69,7 @@ class HgtCheckRepositorySyncRulesTest {
             chuKyNgay = 120,
             lanGanNhat = "28/10/2025",
             lanTiepTheo = "25/02/2026",
+            ghiChu = "",
             updatedAt = updatedAt,
             syncStatus = syncStatus
         )
@@ -72,6 +81,7 @@ class HgtCheckRepositorySyncRulesTest {
             chuKyNgay = 120,
             lanGanNhat = "28/10/2025",
             lanTiepTheo = "25/02/2026",
+            ghiChu = "",
             updatedAt = updatedAt
         )
 }

@@ -11,7 +11,7 @@ import com.example.devicetracker.data.local.entity.SyncQueueEntity
 
 @Database(
     entities = [DeviceLogEntity::class, SyncQueueEntity::class, HgtCheckEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

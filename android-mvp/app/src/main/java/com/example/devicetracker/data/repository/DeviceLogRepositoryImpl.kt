@@ -82,16 +82,23 @@ class DeviceLogRepositoryImpl @Inject constructor(
         Log.i(TAG, "saveLog queued recordId=${log.recordId}")
     }
 
-    override suspend fun updateRepairDate(recordId: String, ngaySuaChua: String?, ghiChu: String) {
+    override suspend fun updateRepairDate(
+        recordId: String,
+        ngaySuaChua: String?,
+        ghiChu: String,
+        tinhTrangThietBi: String
+    ) {
         val existing = deviceLogDao.getById(recordId)
             ?: throw IllegalArgumentException("Record not found: $recordId")
 
         val normalizedRepairDate = ngaySuaChua?.trim()?.ifBlank { null }
         val normalizedNote = ghiChu.trim()
+        val normalizedCondition = tinhTrangThietBi.trim()
         deviceLogDao.upsert(
             existing.copy(
                 ngaySuaChua = normalizedRepairDate,
                 ghiChu = normalizedNote,
+                tinhTrangThietBi = normalizedCondition,
                 updatedAt = System.currentTimeMillis(),
                 syncStatus = "PENDING"
             )

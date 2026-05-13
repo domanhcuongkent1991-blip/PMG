@@ -38,7 +38,8 @@ class HgtCheckRepositoryImpl @Inject constructor(
             id = current.id,
             maThietBi = current.maThietBi,
             chuKyNgay = current.chuKyNgay,
-            lanGanNhat = latestDate
+            lanGanNhat = latestDate,
+            ghiChu = current.ghiChu
         )
     }
 
@@ -46,7 +47,8 @@ class HgtCheckRepositoryImpl @Inject constructor(
         id: String?,
         maThietBi: String,
         chuKyNgay: Int,
-        lanGanNhat: String
+        lanGanNhat: String,
+        ghiChu: String
     ) {
         require(maThietBi.isNotBlank()) { "Ma thiet bi khong duoc de trong" }
         require(chuKyNgay > 0) { "Chu ky phai lon hon 0" }
@@ -73,6 +75,7 @@ class HgtCheckRepositoryImpl @Inject constructor(
             chuKyNgay = chuKyNgay,
             lanGanNhat = lanGanNhat,
             lanTiepTheo = nextDate,
+            ghiChu = ghiChu.trim(),
             updatedAt = System.currentTimeMillis(),
             syncStatus = "PENDING"
         )
@@ -166,6 +169,7 @@ class HgtCheckRepositoryImpl @Inject constructor(
                             chuKyNgay = remote.chuKyNgay,
                             lanGanNhat = remote.lanGanNhat,
                             lanTiepTheo = remote.lanTiepTheo,
+                            ghiChu = remote.ghiChu,
                             updatedAt = if (remote.updatedAt > 0) remote.updatedAt else System.currentTimeMillis(),
                             syncStatus = "SYNCED"
                         )
@@ -215,6 +219,7 @@ class HgtCheckRepositoryImpl @Inject constructor(
             chuKyNgay = chuKyNgay,
             lanGanNhat = lanGanNhat,
             lanTiepTheo = lanTiepTheo,
+            ghiChu = ghiChu,
             updatedAt = updatedAt
         )
 
@@ -255,7 +260,8 @@ private fun hasDifferentHgtContent(currentLocal: HgtCheckEntity, remote: HgtChec
     return currentLocal.maThietBi != remote.maThietBi ||
         currentLocal.chuKyNgay != remote.chuKyNgay ||
         currentLocal.lanGanNhat != remote.lanGanNhat ||
-        currentLocal.lanTiepTheo != remote.lanTiepTheo
+        currentLocal.lanTiepTheo != remote.lanTiepTheo ||
+        currentLocal.ghiChu != remote.ghiChu
 }
 
 private fun normalizeHgtDeviceCodeKey(value: String): String =

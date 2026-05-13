@@ -13,6 +13,7 @@ data class HgtCheckUiState(
     val editingDeviceCode: String = "",
     val editingCycleDays: String = "",
     val editingLatestDate: String = "",
+    val editingNote: String = "",
     val editingError: String? = null,
     val isReminderDialogVisible: Boolean = false,
     val reminderEnabled: Boolean = true,

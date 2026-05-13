@@ -27,4 +27,10 @@ object DatabaseMigrations {
             db.execSQL("ALTER TABLE device_logs ADD COLUMN sourceSheetId INTEGER")
         }
     }
+
+    val MIGRATION_3_4 = object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE hgt_checks ADD COLUMN ghiChu TEXT NOT NULL DEFAULT ''")
+        }
+    }
 }

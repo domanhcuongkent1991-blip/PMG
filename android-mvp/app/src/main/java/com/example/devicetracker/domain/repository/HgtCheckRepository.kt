@@ -9,7 +9,8 @@ interface HgtCheckRepository {
         id: String?,
         maThietBi: String,
         chuKyNgay: Int,
-        lanGanNhat: String
+        lanGanNhat: String,
+        ghiChu: String
     )
     suspend fun deleteCheck(id: String)
     suspend fun syncPending(): Result<Unit>

@@ -81,6 +81,7 @@ class SeedLocalDataLoader @Inject constructor(
                 chuKyNgay = row.chuKyNgay,
                 lanGanNhat = latestDate,
                 lanTiepTheo = nextDate,
+                ghiChu = row.ghiChu,
                 updatedAt = now - index,
                 syncStatus = "SYNCED"
             )
@@ -172,7 +173,8 @@ class SeedLocalDataLoader @Inject constructor(
             maThietBi = optString("maThietBi").trim(),
             chuKyNgay = optInt("chuKyNgay", 0),
             lanGanNhat = optString("lanGanNhat").trim(),
-            lanTiepTheo = optString("lanTiepTheo").trim()
+            lanTiepTheo = optString("lanTiepTheo").trim(),
+            ghiChu = optString("ghiChu").trim()
         )
     }
 
@@ -214,7 +216,8 @@ class SeedLocalDataLoader @Inject constructor(
         val maThietBi: String,
         val chuKyNgay: Int,
         val lanGanNhat: String,
-        val lanTiepTheo: String
+        val lanTiepTheo: String,
+        val ghiChu: String
     )
 
     companion object {

@@ -10,7 +10,7 @@ interface DeviceLogRepository {
     suspend fun getLog(recordId: String): DeviceLog?
     suspend fun getSyncOverview(): SyncOverview
     suspend fun saveLog(log: DeviceLog)
-    suspend fun updateRepairDate(recordId: String, ngaySuaChua: String?, ghiChu: String)
+    suspend fun updateRepairDate(recordId: String, ngaySuaChua: String?, ghiChu: String, tinhTrangThietBi: String)
     suspend fun syncPending(): Result<Unit>
     suspend fun refreshFromRemote(): Result<Unit>
 }

@@ -54,6 +54,7 @@ class HgtCheckViewModel @Inject constructor(
                 editingDeviceCode = item.maThietBi,
                 editingCycleDays = item.chuKyNgay.toString(),
                 editingLatestDate = DateTextFormatter.formatForDisplay(item.lanGanNhat).takeIf { date -> date != "--" }.orEmpty(),
+                editingNote = item.ghiChu,
                 editingError = null
             )
         }
@@ -68,6 +69,7 @@ class HgtCheckViewModel @Inject constructor(
                 editingDeviceCode = "",
                 editingCycleDays = "120",
                 editingLatestDate = "",
+                editingNote = "",
                 editingError = null
             )
         }
@@ -82,6 +84,7 @@ class HgtCheckViewModel @Inject constructor(
                 editingDeviceCode = "",
                 editingCycleDays = "",
                 editingLatestDate = "",
+                editingNote = "",
                 editingError = null
             )
         }
@@ -97,6 +100,10 @@ class HgtCheckViewModel @Inject constructor(
 
     fun onEditingLatestDateChanged(value: String) {
         _uiState.update { it.copy(editingLatestDate = value, editingError = null) }
+    }
+
+    fun onEditingNoteChanged(value: String) {
+        _uiState.update { it.copy(editingNote = value, editingError = null) }
     }
 
     fun saveHgtCheck() {
@@ -127,7 +134,8 @@ class HgtCheckViewModel @Inject constructor(
                     id = state.editingItemId,
                     maThietBi = deviceCode,
                     chuKyNgay = cycleDays,
-                    lanGanNhat = normalized
+                    lanGanNhat = normalized,
+                    ghiChu = state.editingNote
                 )
                 hgtReminderScheduler.rescheduleAll()
             }

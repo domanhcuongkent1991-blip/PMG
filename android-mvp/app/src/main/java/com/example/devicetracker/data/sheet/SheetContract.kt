@@ -36,6 +36,7 @@ object HgtCheckColumns {
     const val CHU_KY_NGAY = "chu_ky_ngay"
     const val LAN_GAN_NHAT = "lan_gan_nhat"
     const val LAN_TIEP_THEO = "lan_tiep_theo"
+    const val GHI_CHU = "ghi_chu"
     const val UPDATED_AT = "updated_at"
 }
 

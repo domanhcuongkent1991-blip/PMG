@@ -10,6 +10,7 @@ data class HgtCheckEntity(
     val chuKyNgay: Int,
     val lanGanNhat: String,
     val lanTiepTheo: String,
+    val ghiChu: String = "",
     val updatedAt: Long,
     val syncStatus: String = "SYNCED"
 )

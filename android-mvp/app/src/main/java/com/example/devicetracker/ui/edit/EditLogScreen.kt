@@ -156,7 +156,8 @@ fun EditLogScreen(
                     label = { Text(stringResource(R.string.label_category)) },
                     placeholder = { Text(stringResource(R.string.placeholder_category_example)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    minLines = 2,
+                    maxLines = 4
                 )
             }
             item {
@@ -174,7 +175,8 @@ fun EditLogScreen(
                     onValueChange = { value -> viewModel.update { it.copy(tinhTrangThietBi = value) } },
                     label = { Text(stringResource(R.string.label_device_condition)) },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    minLines = 3,
+                    maxLines = 8
                 )
             }
             item {
@@ -218,7 +220,9 @@ fun EditLogScreen(
                     onValueChange = { value -> viewModel.update { it.copy(ghiChu = value) } },
                     label = { Text(stringResource(R.string.label_note)) },
                     placeholder = { Text(stringResource(R.string.placeholder_note)) },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 3,
+                    maxLines = 8
                 )
             }
         }
